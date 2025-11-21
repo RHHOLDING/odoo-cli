@@ -5,7 +5,7 @@ Read specific records by IDs command
 import click
 from odoo_cli.client import OdooClient
 from odoo_cli.models.context import CliContext
-from odoo_cli.utils import output_json, output_error, format_table
+from odoo_cli.utils import output_json as print_json, output_error, format_table
 from odoo_cli.utils.context_parser import parse_context_flags
 
 
@@ -14,8 +14,9 @@ from odoo_cli.utils.context_parser import parse_context_flags
 @click.argument('ids', type=str)
 @click.option('--fields', type=str, help='Comma-separated field names to retrieve')
 @click.option('--context', multiple=True, help='Context key=value (e.g., --context active_test=false)')
+@click.option('--json', 'output_json', is_flag=True, default=None, help='Output pure JSON (LLM-friendly)')
 @click.pass_obj
-def read(ctx: CliContext, model: str, ids: str, fields: str, context: tuple):
+def read(ctx: CliContext, model: str, ids: str, fields: str, context: tuple, output_json: bool):
     """
     Read specific records by IDs
 
@@ -24,6 +25,9 @@ def read(ctx: CliContext, model: str, ids: str, fields: str, context: tuple):
         odoo read sale.order 100 --fields name,amount_total,state
         odoo read res.partner 1,2,3 --json
     """
+    # Determine JSON mode (command flag takes precedence over global)
+    json_mode = output_json if output_json is not None else ctx.json_mode
+
     # Parse IDs
     try:
         parsed_ids = [int(id_str.strip()) for id_str in ids.split(',')]
@@ -34,7 +38,7 @@ def read(ctx: CliContext, model: str, ids: str, fields: str, context: tuple):
             details=str(e),
             suggestion='IDs must be comma-separated integers, e.g., "1,2,3"',
             console=ctx.console,
-            json_mode=ctx.json_mode,
+            json_mode=json_mode,
             exit_code=3
         )
 
@@ -54,7 +58,7 @@ def read(ctx: CliContext, model: str, ids: str, fields: str, context: tuple):
                 error_type='data',
                 suggestion='Context must be in format key=value (e.g., active_test=false)',
                 console=ctx.console,
-                json_mode=ctx.json_mode,
+                json_mode=json_mode,
                 exit_code=3
             )
 
@@ -76,7 +80,7 @@ def read(ctx: CliContext, model: str, ids: str, fields: str, context: tuple):
             details=str(e),
             suggestion='Check URL and network connectivity',
             console=ctx.console,
-            json_mode=ctx.json_mode,
+            json_mode=json_mode,
             exit_code=1
         )
     except ValueError as e:
@@ -86,7 +90,7 @@ def read(ctx: CliContext, model: str, ids: str, fields: str, context: tuple):
             details=str(e),
             suggestion='Verify credentials in configuration',
             console=ctx.console,
-            json_mode=ctx.json_mode,
+            json_mode=json_mode,
             exit_code=2
         )
 
@@ -94,8 +98,8 @@ def read(ctx: CliContext, model: str, ids: str, fields: str, context: tuple):
     try:
         results = client.read(model, parsed_ids, fields=parsed_fields, context=parsed_context)
 
-        if ctx.json_mode:
-            output_json(results)
+        if json_mode:
+            print_json(results)
         else:
             if results:
                 # Format as table
@@ -127,6 +131,6 @@ def read(ctx: CliContext, model: str, ids: str, fields: str, context: tuple):
             details=error_msg,
             suggestion=suggestion,
             console=ctx.console,
-            json_mode=ctx.json_mode,
+            json_mode=json_mode,
             exit_code=3
         )
