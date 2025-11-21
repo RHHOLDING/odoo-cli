@@ -558,14 +558,56 @@ export ODOO_NO_VERIFY_SSL=true
 
 The `context` command group provides access to project-specific business metadata, helping LLM agents (Claude, GPT) understand your Odoo setup and make better recommendations.
 
+### File Location
+
+The context file path is resolved in this order (highest to lowest priority):
+
+1. **`--context-file` parameter** (explicit, command-level)
+   ```bash
+   odoo-cli context show --context-file /path/to/.odoo-context.json
+   ```
+
+2. **`ODOO_CONTEXT_FILE` environment variable** (recommended for automation)
+   ```bash
+   export ODOO_CONTEXT_FILE=/path/to/.odoo-context.json
+   odoo-cli context show  # Uses env var
+   ```
+
+3. **Parent directory search** (like Git's `.git/` lookup)
+   - Searches current directory and up to 5 parent directories
+   - Useful when CLI runs from subdirectories
+
+4. **Default location** (if nothing found)
+   - `./.odoo-context.json` in current directory
+
 ### Setup
 
-1. Copy the template to your project:
+1. Create your context file (any location):
 ```bash
-cp .odoo-context.json5.example .odoo-context.json
+cp .odoo-context.json5.example /Users/andre/Documents/dev/ODOO-MAIN/.odoo-context.json
 ```
 
-2. Customize with your business knowledge:
+2. Configure access (choose one):
+
+**Option A: Environment variable (recommended)**
+```bash
+export ODOO_CONTEXT_FILE=/Users/andre/Documents/dev/ODOO-MAIN/.odoo-context.json
+odoo-cli context show  # Works from any directory
+```
+
+**Option B: Command-line flag**
+```bash
+odoo-cli context show --context-file /Users/andre/Documents/dev/ODOO-MAIN/.odoo-context.json
+```
+
+**Option C: Place in current/parent directory**
+```bash
+# Place .odoo-context.json in your project root
+cp .odoo-context.json5.example ./.odoo-context.json
+odoo-cli context show  # Auto-finds file
+```
+
+3. Customize with your business knowledge:
 ```json
 {
   "schema_version": "1.0.0",
@@ -589,7 +631,7 @@ cp .odoo-context.json5.example .odoo-context.json
 }
 ```
 
-3. Validate your context file:
+4. Validate your context file:
 ```bash
 odoo-cli context validate --strict
 ```
@@ -600,8 +642,11 @@ odoo-cli context validate --strict
 |---------|-------------|---------|
 | `context show` | Display all business context | `odoo-cli context show` |
 | `context show --section companies` | Filter by section | `odoo-cli context show --section companies --json` |
-| `context guide --task` | Get task-specific guidance | `odoo-cli context guide --task create-sales-order` |
+| `context show --context-file PATH` | Use custom context file | `odoo-cli context show --context-file /path/to/.odoo-context.json` |
+| `context guide --task TASK` | Get task-specific guidance | `odoo-cli context guide --task create-sales-order` |
+| `context guide --task TASK --context-file PATH` | Task guidance with custom file | `odoo-cli context guide --task create-sales-order --context-file /path/to/.odoo-context.json` |
 | `context validate` | Validate context file | `odoo-cli context validate --strict` |
+| `context validate --context-file PATH` | Validate custom context file | `odoo-cli context validate --context-file /path/to/.odoo-context.json --strict` |
 
 ### Available Tasks for Guidance
 
@@ -613,19 +658,34 @@ odoo-cli context validate --strict
 ### Example Workflow
 
 ```bash
-# 1. Show all context
+# Setup: Set environment variable once
+export ODOO_CONTEXT_FILE=/Users/andre/Documents/dev/ODOO-MAIN/.odoo-context.json
+
+# 1. Show all context (uses env var)
 odoo-cli context show
 
 # 2. Get task-specific guidance (for LLM agents)
 odoo-cli context guide --task create-sales-order --json
 
 # 3. Validate your context file
-odoo-cli context validate
+odoo-cli context validate --strict
 
 # 4. Use in scripts/automation
 context=$(odoo-cli context show --section companies --json)
 echo "$context"  # Pass to LLM for context-aware recommendations
+
+# 5. Or use --context-file flag for one-off usage
+odoo-cli context show --context-file /path/to/.odoo-context.json
 ```
+
+### Configuration Methods Comparison
+
+| Method | Use Case | Syntax |
+|--------|----------|--------|
+| **Env variable** | Long-term, automation | `export ODOO_CONTEXT_FILE=...` then use commands normally |
+| **Command flag** | One-off usage, CI/CD | `odoo-cli context show --context-file /path/to/file.json` |
+| **File placement** | Local development | Place `.odoo-context.json` in project root or current dir |
+| **Parent search** | Subdirectory usage | Just run `odoo-cli context show` from any subdirectory |
 
 ### Security
 

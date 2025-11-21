@@ -33,20 +33,32 @@ def context():
     type=str,
     help='Filter by section (companies, warehouses, workflows, modules, notes)'
 )
+@click.option(
+    '--context-file',
+    type=click.Path(exists=True),
+    help='Path to .odoo-context.json file (overrides ODOO_CONTEXT_FILE env var)'
+)
 @click.option('--json', 'output_json_flag', is_flag=True, default=None, help='Output as JSON')
 @click.pass_obj
-def show(ctx: CliContext, section: str, output_json_flag: bool) -> None:
+def show(ctx: CliContext, section: str, context_file: str, output_json_flag: bool) -> None:
     """Display business context for LLM agents
+
+    Context file location is resolved in this order:
+        1. --context-file parameter (if provided)
+        2. ODOO_CONTEXT_FILE environment variable
+        3. Search in current directory and parent directories
+        4. Default: ./.odoo-context.json
 
     Examples:
         odoo-cli context show
         odoo-cli context show --section companies
+        odoo-cli context show --context-file /path/to/.odoo-context.json
         odoo-cli context show --section warehouses --json
     """
     # Determine JSON mode (command flag takes precedence over global)
     json_mode = output_json_flag if output_json_flag is not None else ctx.json_mode
 
-    manager = ContextManager()
+    manager = ContextManager(context_file=context_file)
     context_data = manager.load()
 
     if not context_data:
@@ -80,9 +92,14 @@ def show(ctx: CliContext, section: str, output_json_flag: bool) -> None:
     type=click.Choice(list(TASK_MAPPINGS.keys())),
     help='Task name for context-aware guidance'
 )
+@click.option(
+    '--context-file',
+    type=click.Path(exists=True),
+    help='Path to .odoo-context.json file (overrides ODOO_CONTEXT_FILE env var)'
+)
 @click.option('--json', 'output_json_flag', is_flag=True, default=None, help='Output as JSON')
 @click.pass_obj
-def guide(ctx: CliContext, task: str, output_json_flag: bool) -> None:
+def guide(ctx: CliContext, task: str, context_file: str, output_json_flag: bool) -> None:
     """Get context-aware guidance for common tasks
 
     Available tasks:
@@ -91,14 +108,21 @@ def guide(ctx: CliContext, task: str, output_json_flag: bool) -> None:
         - purchase-approval: Guidance for purchase workflows
         - production-workflow: Guidance for production workflows
 
+    Context file location is resolved in this order:
+        1. --context-file parameter (if provided)
+        2. ODOO_CONTEXT_FILE environment variable
+        3. Search in current directory and parent directories
+        4. Default: ./.odoo-context.json
+
     Examples:
         odoo-cli context guide --task create-sales-order
         odoo-cli context guide --task manage-inventory --json
+        odoo-cli context guide --task create-sales-order --context-file /path/to/.odoo-context.json
     """
     # Determine JSON mode
     json_mode = output_json_flag if output_json_flag is not None else ctx.json_mode
 
-    manager = ContextManager()
+    manager = ContextManager(context_file=context_file)
     context_data = manager.load()
 
     if not context_data:
@@ -128,23 +152,35 @@ def guide(ctx: CliContext, task: str, output_json_flag: bool) -> None:
     is_flag=True,
     help='Enforce strict validation (schema + completeness)'
 )
+@click.option(
+    '--context-file',
+    type=click.Path(exists=True),
+    help='Path to .odoo-context.json file (overrides ODOO_CONTEXT_FILE env var)'
+)
 @click.option('--json', 'output_json_flag', is_flag=True, default=None, help='Output as JSON')
 @click.pass_obj
-def validate(ctx: CliContext, strict: bool, output_json_flag: bool) -> None:
+def validate(ctx: CliContext, strict: bool, context_file: str, output_json_flag: bool) -> None:
     """Validate context file against schema and check for issues
 
     Normal mode: Checks JSON syntax, warns about potential security issues
     Strict mode: Enforces schema validation, requires all sections, fails on warnings
 
+    Context file location is resolved in this order:
+        1. --context-file parameter (if provided)
+        2. ODOO_CONTEXT_FILE environment variable
+        3. Search in current directory and parent directories
+        4. Default: ./.odoo-context.json
+
     Examples:
         odoo-cli context validate
         odoo-cli context validate --strict
         odoo-cli context validate --json
+        odoo-cli context validate --context-file /path/to/.odoo-context.json
     """
     # Determine JSON mode
     json_mode = output_json_flag if output_json_flag is not None else ctx.json_mode
 
-    manager = ContextManager()
+    manager = ContextManager(context_file=context_file)
     result = manager.validate(strict=strict)
 
     # Determine exit code

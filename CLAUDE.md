@@ -154,6 +154,37 @@ data = json.loads(result.stdout)
 - Per-profile configurations
 - Integration with context layer
 
+## Context File Configuration (v1.5.1+)
+
+**v1.5.1 adds flexible context file path resolution:**
+
+Context files (`.odoo-context.json`) can be located anywhere. Resolution order (highest priority first):
+
+1. **Command-line flag** (explicit path):
+   ```bash
+   odoo-cli context show --context-file /path/to/.odoo-context.json
+   odoo-cli context guide --task create-sales-order --context-file /path/to/.odoo-context.json
+   ```
+
+2. **`ODOO_CONTEXT_FILE` environment variable** (recommended for automation):
+   ```bash
+   export ODOO_CONTEXT_FILE=/path/to/.odoo-context.json
+   odoo-cli context show  # Uses env var
+   odoo-cli context validate --strict  # Uses env var
+   ```
+
+3. **Parent directory search** (like Git's `.git/` lookup):
+   - Searches current directory and up to 5 parent directories
+   - No configuration needed; just works from subdirectories
+
+4. **Default location**:
+   - `./.odoo-context.json` in current working directory
+
+**For LLM agents:**
+- Use `ODOO_CONTEXT_FILE` environment variable for reliable discovery
+- Set once, works across all context commands
+- Perfect for multi-directory projects
+
 ## Development Workflow
 
 ### BMAD Specify Workflow

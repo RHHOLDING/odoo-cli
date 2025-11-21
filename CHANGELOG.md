@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.1] - Flexible Context File Paths (Patch)
+
+### Added
+- **Flexible context file path resolution** - Context files can now be located anywhere
+  - `--context-file PATH` flag for explicit path (all context commands)
+  - `ODOO_CONTEXT_FILE` environment variable support (recommended for automation)
+  - Parent directory search (like Git's `.git/` lookup) - up to 5 levels
+  - Resolution priority: flag > env var > parent search > default location
+- **Better documentation** - Comprehensive guide for context file configuration options
+
+### Fixed
+- Context files in parent/sibling directories now discoverable from CLI
+- Agents can work from subdirectories without symlinks or config files
+
+### Documentation
+- README.md: Added "File Location" section with 4 configuration options
+- README.md: Added "Configuration Methods Comparison" table
+- CLAUDE.md: Added "Context File Configuration (v1.5.1+)" section
+- Updated all context command docstrings with resolution order
+
 ## [1.5.0] - Project Context Layer for LLM Agents
 
 ### Added

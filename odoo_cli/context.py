@@ -5,6 +5,7 @@ Manages loading and accessing .odoo-context.json files with validation.
 """
 
 import json
+import os
 import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -17,11 +18,53 @@ class ContextManager:
         """
         Initialize ContextManager
 
+        Path resolution order (highest to lowest priority):
+        1. context_file parameter (explicit path)
+        2. ODOO_CONTEXT_FILE environment variable
+        3. Parent directory search (looks in cwd and parent dirs)
+        4. Default: CWD/.odoo-context.json
+
         Args:
-            context_file: Path to context file (defaults to CWD/.odoo-context.json)
+            context_file: Path to context file (overrides env var and search)
         """
-        self.context_file = context_file or Path.cwd() / ".odoo-context.json"
+        if context_file:
+            # Explicit path provided (highest priority)
+            self.context_file = Path(context_file)
+        else:
+            # Check ODOO_CONTEXT_FILE environment variable
+            env_context = os.environ.get('ODOO_CONTEXT_FILE')
+            if env_context:
+                self.context_file = Path(env_context)
+            else:
+                # Search in current dir and parent directories
+                self.context_file = self._search_context_file()
+
         self.context: Optional[Dict[str, Any]] = None
+
+    @staticmethod
+    def _search_context_file() -> Path:
+        """
+        Search for .odoo-context.json in current directory and parent directories.
+
+        Returns:
+            Path to found context file, or default path (CWD/.odoo-context.json)
+        """
+        current = Path.cwd()
+
+        # Search up to 5 levels of parent directories
+        for _ in range(5):
+            context_file = current / ".odoo-context.json"
+            if context_file.exists():
+                return context_file
+
+            # Stop if we reach root
+            if current.parent == current:
+                break
+
+            current = current.parent
+
+        # Not found - return default location (CWD)
+        return Path.cwd() / ".odoo-context.json"
 
     def load(self) -> Dict[str, Any]:
         """
