@@ -7,7 +7,7 @@
 
 A high-performance, standalone command-line interface for Odoo using the modern JSON-RPC protocol. This tool provides direct access to Odoo functionality from your terminal, perfect for developers, administrators, and automation scripts.
 
-**v1.5.0 - Project Context Layer for LLM Agents: Business metadata access for intelligent recommendations!**
+**v1.5.1 - Flexible Context File Paths: Store context files anywhere with multiple access methods!**
 
 ## Maintainer
 
