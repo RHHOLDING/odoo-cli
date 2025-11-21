@@ -19,8 +19,8 @@ Creator and maintainer of odoo-cli
 - ✨ **CRUD Commands** - Create, update, delete records with simple syntax (no JSON!)
 - 📦 **Batch Operations** - Bulk create/update from JSON files with progress tracking
 - 📊 **Aggregation Helper** - SUM, AVG, COUNT with optional GROUP BY
-- ⚡ **Quick Wins Bundle** - Fast counting, name search, and payload optimization (NEW!)
-- 🚀 **16 Commands** - All CRUD operations, batch processing, aggregation, and more
+- ⚡ **Quick Wins Bundle** - Fast counting, name search, and payload optimization
+- 🚀 **19 Commands** - 16 core commands (CRUD, batch, aggregation) + 3 context commands for LLM agents
 - ⚡ **High-Performance JSON-RPC** - 75% higher throughput than XML-RPC
 - 🎯 **Auto Type Inference** - Automatic detection of int, float, bool, string types
 - ✅ **Field Validation** - Pre-flight checks with helpful error messages
