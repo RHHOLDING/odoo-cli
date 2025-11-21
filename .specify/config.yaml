@@ -1,0 +1,45 @@
+# .specify Configuration for odoo-xml-cli
+# BMAD-style feature specification workflow
+
+project:
+  name: "odoo-xml-cli"
+  type: "CLI Tool"
+  description: "LLM-friendly Odoo JSON-RPC CLI wrapper"
+  version: "1.4.0"
+  repository: "https://github.com/RHHOLDING/odoo-cli"
+
+directories:
+  features: ".specify/features"
+  templates: ".specify/templates"
+
+feature_naming:
+  pattern: "{id}_{name}"
+  id_format: "numeric"  # 001, 002, etc.
+
+workflow:
+  states:
+    - idea
+    - specified
+    - planned
+    - in_progress
+    - completed
+    - archived
+
+  files:
+    spec: "spec.md"          # Feature specification
+    plan: "plan.md"          # Implementation plan
+    tasks: "tasks.md"        # Task breakdown
+
+templates:
+  spec: ".specify/templates/spec-template.md"
+  plan: ".specify/templates/plan-template.md"
+
+# Integration with existing specs
+legacy_specs:
+  directory: "specs/000"
+  pattern: "IDEA-{id}_{name}.md"
+
+version_mapping:
+  v1.3.0: "Context Management"
+  v1.4.0: "Quick Wins Bundle"
+  v1.5.0: "Environment Profiles + Read-Only Mode"

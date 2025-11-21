@@ -1,0 +1,307 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Odoo CLI JSON Output Schemas",
+  "definitions": {
+    "SuccessResponse": {
+      "type": "object",
+      "required": ["success", "data"],
+      "properties": {
+        "success": {
+          "type": "boolean",
+          "const": true
+        },
+        "data": {
+          "description": "Command-specific result data"
+        },
+        "count": {
+          "type": "integer",
+          "description": "Total record count for searches"
+        },
+        "truncated": {
+          "type": "boolean",
+          "description": "Whether results were limited"
+        }
+      }
+    },
+    "ErrorResponse": {
+      "type": "object",
+      "required": ["success", "error", "error_type"],
+      "properties": {
+        "success": {
+          "type": "boolean",
+          "const": false
+        },
+        "error": {
+          "type": "string",
+          "description": "Human-readable error message"
+        },
+        "error_type": {
+          "type": "string",
+          "enum": ["connection", "auth", "data"],
+          "description": "Error category"
+        },
+        "details": {
+          "type": "string",
+          "description": "Technical error details"
+        },
+        "suggestion": {
+          "type": "string",
+          "description": "Actionable suggestion to resolve"
+        }
+      }
+    },
+    "Employee": {
+      "type": "object",
+      "properties": {
+        "id": {"type": "integer"},
+        "name": {"type": "string"},
+        "work_email": {"type": "string"},
+        "department_id": {
+          "type": "array",
+          "items": [
+            {"type": "integer"},
+            {"type": "string"}
+          ]
+        },
+        "job_id": {
+          "type": "array",
+          "items": [
+            {"type": "integer"},
+            {"type": "string"}
+          ]
+        }
+      }
+    },
+    "Holiday": {
+      "type": "object",
+      "properties": {
+        "id": {"type": "integer"},
+        "employee_id": {
+          "type": "array",
+          "items": [
+            {"type": "integer"},
+            {"type": "string"}
+          ]
+        },
+        "holiday_status_id": {
+          "type": "array",
+          "items": [
+            {"type": "integer"},
+            {"type": "string"}
+          ]
+        },
+        "date_from": {"type": "string", "format": "date-time"},
+        "date_to": {"type": "string", "format": "date-time"},
+        "state": {
+          "type": "string",
+          "enum": ["draft", "confirm", "validate", "refuse"]
+        },
+        "number_of_days": {"type": "number"}
+      }
+    },
+    "Model": {
+      "type": "object",
+      "properties": {
+        "model": {"type": "string"},
+        "name": {"type": "string"},
+        "info": {"type": "string"},
+        "access_ids": {"type": "array"}
+      }
+    },
+    "Field": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["char", "text", "integer", "float", "boolean", "date", "datetime", "many2one", "one2many", "many2many", "selection", "binary"]
+        },
+        "string": {"type": "string"},
+        "help": {"type": "string"},
+        "required": {"type": "boolean"},
+        "readonly": {"type": "boolean"},
+        "store": {"type": "boolean"},
+        "relation": {"type": "string"},
+        "selection": {"type": "array"}
+      }
+    }
+  },
+  "schemas": {
+    "execute": {
+      "oneOf": [
+        {
+          "allOf": [
+            {"$ref": "#/definitions/SuccessResponse"},
+            {
+              "properties": {
+                "data": {
+                  "description": "Method execution result (type depends on method)"
+                }
+              }
+            }
+          ]
+        },
+        {"$ref": "#/definitions/ErrorResponse"}
+      ]
+    },
+    "search-employee": {
+      "oneOf": [
+        {
+          "allOf": [
+            {"$ref": "#/definitions/SuccessResponse"},
+            {
+              "properties": {
+                "data": {
+                  "type": "array",
+                  "items": {"$ref": "#/definitions/Employee"}
+                }
+              }
+            }
+          ]
+        },
+        {"$ref": "#/definitions/ErrorResponse"}
+      ]
+    },
+    "search-holidays": {
+      "oneOf": [
+        {
+          "allOf": [
+            {"$ref": "#/definitions/SuccessResponse"},
+            {
+              "properties": {
+                "data": {
+                  "type": "array",
+                  "items": {"$ref": "#/definitions/Holiday"}
+                }
+              }
+            }
+          ]
+        },
+        {"$ref": "#/definitions/ErrorResponse"}
+      ]
+    },
+    "get-models": {
+      "oneOf": [
+        {
+          "allOf": [
+            {"$ref": "#/definitions/SuccessResponse"},
+            {
+              "properties": {
+                "data": {
+                  "type": "array",
+                  "items": {"type": "string"},
+                  "description": "List of model names"
+                }
+              }
+            }
+          ]
+        },
+        {"$ref": "#/definitions/ErrorResponse"}
+      ]
+    },
+    "get-fields": {
+      "oneOf": [
+        {
+          "allOf": [
+            {"$ref": "#/definitions/SuccessResponse"},
+            {
+              "properties": {
+                "data": {
+                  "type": "object",
+                  "additionalProperties": {"$ref": "#/definitions/Field"}
+                }
+              }
+            }
+          ]
+        },
+        {"$ref": "#/definitions/ErrorResponse"}
+      ]
+    },
+    "search": {
+      "oneOf": [
+        {
+          "allOf": [
+            {"$ref": "#/definitions/SuccessResponse"},
+            {
+              "properties": {
+                "data": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {"type": "integer"}
+                    },
+                    "additionalProperties": true
+                  }
+                },
+                "count": {
+                  "type": "integer",
+                  "description": "Total matching records"
+                }
+              }
+            }
+          ]
+        },
+        {"$ref": "#/definitions/ErrorResponse"}
+      ]
+    },
+    "read": {
+      "oneOf": [
+        {
+          "allOf": [
+            {"$ref": "#/definitions/SuccessResponse"},
+            {
+              "properties": {
+                "data": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": ["id"],
+                    "properties": {
+                      "id": {"type": "integer"}
+                    },
+                    "additionalProperties": true
+                  }
+                }
+              }
+            }
+          ]
+        },
+        {"$ref": "#/definitions/ErrorResponse"}
+      ]
+    }
+  },
+  "examples": {
+    "success_search": {
+      "success": true,
+      "data": [
+        {"id": 1, "name": "John Doe", "email": "john@example.com"},
+        {"id": 2, "name": "Jane Smith", "email": "jane@example.com"}
+      ],
+      "count": 2
+    },
+    "success_execute": {
+      "success": true,
+      "data": 42
+    },
+    "error_connection": {
+      "success": false,
+      "error": "Failed to connect to Odoo",
+      "error_type": "connection",
+      "details": "Connection timeout after 30 seconds",
+      "suggestion": "Check network connectivity and Odoo URL"
+    },
+    "error_auth": {
+      "success": false,
+      "error": "Authentication failed",
+      "error_type": "auth",
+      "details": "Access denied for user 'admin'",
+      "suggestion": "Verify username and password in configuration"
+    },
+    "large_dataset": {
+      "success": true,
+      "data": ["...first 500 records..."],
+      "count": 1543,
+      "truncated": true
+    }
+  }
+}

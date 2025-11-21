@@ -1,0 +1,280 @@
+# CLI Command Contracts
+# Defines the interface for all odoo-xml-cli commands
+
+commands:
+  execute:
+    description: Execute arbitrary model method
+    arguments:
+      - name: model
+        type: string
+        required: true
+        description: Odoo model name (e.g., 'res.partner')
+      - name: method
+        type: string
+        required: true
+        description: Method to execute (e.g., 'search_read')
+    options:
+      - name: --args
+        type: json
+        required: false
+        description: JSON array of positional arguments
+      - name: --kwargs
+        type: json
+        required: false
+        description: JSON object of keyword arguments
+      - name: --json
+        type: flag
+        description: Output pure JSON to stdout
+    examples:
+      - odoo execute ir.module.module button_immediate_upgrade --args '[[("name", "=", "sale")]]'
+      - odoo execute res.partner search_count --args '[[]]' --json
+    output:
+      normal: Formatted table or text
+      json: '{"success": true, "data": <result>}'
+    exit_codes:
+      0: Success
+      1: Connection error
+      2: Authentication error
+      3: Method execution error
+
+  search-employee:
+    description: Search employees by name
+    arguments:
+      - name: name
+        type: string
+        required: true
+        description: Employee name to search
+    options:
+      - name: --limit
+        type: integer
+        default: 20
+        description: Maximum results to return
+      - name: --json
+        type: flag
+        description: Output pure JSON to stdout
+    examples:
+      - odoo search-employee "John"
+      - odoo search-employee "John Doe" --limit 5 --json
+    output:
+      normal: Table with ID, Name, Department, Email
+      json: '{"success": true, "data": [{"id": 1, "name": "...", ...}]}'
+
+  search-holidays:
+    description: Search time-off records
+    options:
+      - name: --employee
+        type: string
+        required: false
+        description: Filter by employee name
+      - name: --state
+        type: choice
+        choices: [draft, confirm, validate, refuse]
+        required: false
+        description: Filter by holiday state
+      - name: --limit
+        type: integer
+        default: 20
+        description: Maximum results to return
+      - name: --json
+        type: flag
+        description: Output pure JSON to stdout
+    examples:
+      - odoo search-holidays --employee "John" --state validate
+      - odoo search-holidays --limit 50 --json
+    output:
+      normal: Table with Employee, Type, Start Date, End Date, State
+      json: '{"success": true, "data": [...]}'
+
+  get-models:
+    description: List all available Odoo models
+    options:
+      - name: --filter
+        type: string
+        required: false
+        description: Filter models by name pattern
+      - name: --json
+        type: flag
+        description: Output pure JSON to stdout
+    examples:
+      - odoo get-models
+      - odoo get-models --filter sale
+      - odoo get-models --filter "^account\." --json
+    output:
+      normal: Table with Model Name, Description, Record Count
+      json: '{"success": true, "data": ["sale.order", "sale.order.line", ...]}'
+
+  get-fields:
+    description: Get field definitions for a model
+    arguments:
+      - name: model
+        type: string
+        required: true
+        description: Odoo model name
+    options:
+      - name: --field
+        type: string
+        required: false
+        description: Get specific field details
+      - name: --json
+        type: flag
+        description: Output pure JSON to stdout
+    examples:
+      - odoo get-fields res.partner
+      - odoo get-fields sale.order --field amount_total
+    output:
+      normal: Table with Field Name, Type, Required, Help Text
+      json: '{"success": true, "data": {"name": {"type": "char", ...}}}'
+
+  search:
+    description: Search records with domain filter
+    arguments:
+      - name: model
+        type: string
+        required: true
+        description: Odoo model name
+      - name: domain
+        type: string
+        required: true
+        description: Search domain as JSON array
+    options:
+      - name: --fields
+        type: string
+        required: false
+        description: Comma-separated field names
+      - name: --limit
+        type: integer
+        default: 20
+        description: Maximum results
+      - name: --offset
+        type: integer
+        default: 0
+        description: Skip first N results
+      - name: --json
+        type: flag
+        description: Output pure JSON to stdout
+    examples:
+      - odoo search res.partner '[]'
+      - odoo search res.partner '[["is_company", "=", true]]' --fields name,email --limit 10
+    output:
+      normal: Dynamic table based on requested fields
+      json: '{"success": true, "data": [...], "count": 150}'
+
+  read:
+    description: Read specific records by IDs
+    arguments:
+      - name: model
+        type: string
+        required: true
+        description: Odoo model name
+      - name: ids
+        type: string
+        required: true
+        description: Comma-separated record IDs
+    options:
+      - name: --fields
+        type: string
+        required: false
+        description: Comma-separated field names
+      - name: --json
+        type: flag
+        description: Output pure JSON to stdout
+    examples:
+      - odoo read res.partner 1,2,3
+      - odoo read sale.order 100 --fields name,amount_total,state
+    output:
+      normal: Table with ID and requested fields
+      json: '{"success": true, "data": [{"id": 1, ...}]}'
+
+  shell:
+    description: Interactive Python shell with Odoo client
+    options:
+      - name: --no-banner
+        type: flag
+        description: Skip the examples banner
+    examples:
+      - odoo shell
+      - odoo shell --no-banner
+    behavior:
+      - Pre-loads 'client' variable with authenticated OdooClient
+      - Imports json, pprint, datetime automatically
+      - Shows example snippets on startup (unless --no-banner)
+      - Saves command history to ~/.odoo_cli_history
+      - Supports tab completion for client methods
+
+global_options:
+  --config:
+    type: path
+    description: Path to configuration file
+    env_var: ODOO_CONFIG_FILE
+
+  --url:
+    type: string
+    description: Override Odoo URL
+    env_var: ODOO_URL
+
+  --db:
+    type: string
+    description: Override database name
+    env_var: ODOO_DB
+
+  --username:
+    type: string
+    description: Override username
+    env_var: ODOO_USERNAME
+
+  --password:
+    type: string
+    description: Override password (use env var for security)
+    env_var: ODOO_PASSWORD
+
+  --no-verify-ssl:
+    type: flag
+    description: Disable SSL certificate verification
+
+  --timeout:
+    type: integer
+    default: 30
+    description: XML-RPC timeout in seconds
+
+error_responses:
+  connection_error:
+    json: |
+      {
+        "success": false,
+        "error": "Failed to connect to Odoo",
+        "error_type": "connection",
+        "details": "Connection refused: <url>",
+        "suggestion": "Check URL and network connectivity"
+      }
+    exit_code: 1
+
+  auth_error:
+    json: |
+      {
+        "success": false,
+        "error": "Authentication failed",
+        "error_type": "auth",
+        "details": "Invalid username or password",
+        "suggestion": "Verify credentials in .env file"
+      }
+    exit_code: 2
+
+  data_error:
+    json: |
+      {
+        "success": false,
+        "error": "Operation failed",
+        "error_type": "data",
+        "details": "Model 'invalid.model' does not exist",
+        "suggestion": "Use 'odoo get-models' to list available models"
+      }
+    exit_code: 3
+
+large_dataset_handling:
+  threshold: 500
+  behavior:
+    normal_mode: |
+      Warning: Query would return 1543 records.
+      Continue? (Y/n):
+    json_mode: |
+      Automatically proceed, include "truncated" field if limit applied

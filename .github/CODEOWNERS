@@ -1,0 +1,11 @@
+# Code Ownership
+# This file defines who is responsible for code in this repository
+
+# Default owner for everything
+* @actec-andre
+
+# Specific areas
+/odoo_cli/ @actec-andre
+/docs/ @actec-andre
+/.specify/ @actec-andre
+/tests/ @actec-andre

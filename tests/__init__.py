@@ -1,0 +1,1 @@
+"""Test suite for Odoo XML-RPC CLI Tool"""
