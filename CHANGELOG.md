@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.1] - 2025-11-21
+
+### Added
+- **ODOO_CLI_JSON environment variable** - Enable JSON output by default for LLM-friendly automation
+  - Set `export ODOO_CLI_JSON=1` once to get JSON output for all commands
+  - Added to `.env.example` as recommended configuration for LLMs
+- **Command-level --json flag** - `--json` can now be placed at end of command (more intuitive)
+  - Both work: `odoo-cli --json search ...` AND `odoo-cli search ... --json`
+  - Command-level flag takes precedence over global flag
+
+### Changed
+- Updated `search` command with command-level `--json` option
+- Priority order: Command `--json` > `ODOO_CLI_JSON` env > Global `--json` > Default (Rich output)
+
+### LLM Integration
+- **3 ways to get JSON output:**
+  1. `odoo-cli search res.partner '[]' --json` (command-level, most intuitive)
+  2. `export ODOO_CLI_JSON=1` (set once, affects all commands)
+  3. `odoo-cli --json search res.partner '[]'` (global flag, original method)
+
 ## [1.4.0] - 2025-11-21
 
 ### Added
@@ -155,6 +175,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [Contributing](CONTRIBUTING.md)
 - [Security](SECURITY.md)
 
+[1.4.1]: https://github.com/RHHOLDING/odoo-cli/compare/v1.4.0...v1.4.1
 [1.4.0]: https://github.com/RHHOLDING/odoo-cli/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/RHHOLDING/odoo-cli/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/RHHOLDING/odoo-cli/compare/v1.1.0...v1.2.0

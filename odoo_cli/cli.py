@@ -4,6 +4,7 @@ Main CLI entry point for odoo-xml-cli
 
 import click
 import sys
+import os
 from typing import Optional
 from odoo_cli.models.context import CliContext
 from odoo_cli.config import load_config, validate_config
@@ -24,28 +25,34 @@ from rich.console import Console
 @click.pass_context
 def cli(ctx, json, llm_help, config, url, db, username, password, timeout, no_verify_ssl):
     """
-    Odoo XML-RPC CLI Tool
+    Odoo JSON-RPC CLI Tool
 
     A standalone, LLM-optimized command-line interface for Odoo operations.
 
     Configure via environment variables:
         ODOO_URL, ODOO_DB, ODOO_USERNAME, ODOO_PASSWORD
+        ODOO_CLI_JSON=1  (Enable JSON output by default for LLMs)
 
     Or create a .env file in your project directory.
 
     Examples:
-        odoo get-models
-        odoo search res.partner '[]' --limit 10
-        odoo execute res.partner search_count --args '[[]]'
-        odoo shell
+        odoo-cli get-models
+        odoo-cli search res.partner '[]' --limit 10
+        odoo-cli execute res.partner search_count --args '[[]]'
+        odoo-cli shell
     """
     # Handle LLM help request (no credentials needed)
     if llm_help:
         print_llm_help(output_format="json")
         sys.exit(0)
 
+    # Check for ODOO_CLI_JSON environment variable
+    # This allows LLMs to set JSON mode once via export ODOO_CLI_JSON=1
+    env_json = os.environ.get('ODOO_CLI_JSON', '').lower() in ('1', 'true', 'yes')
+    json_mode = json or env_json
+
     # Initialize context
-    console = Console(stderr=True) if not json else Console(file=sys.stderr, stderr=True)
+    console = Console(stderr=True) if not json_mode else Console(file=sys.stderr, stderr=True)
 
     # Load configuration
     try:
@@ -59,7 +66,7 @@ def cli(ctx, json, llm_help, config, url, db, username, password, timeout, no_ve
             verify_ssl=not no_verify_ssl
         )
     except Exception as e:
-        if json:
+        if json_mode:
             error_response = {
                 'success': False,
                 'error': str(e),
@@ -76,7 +83,7 @@ def cli(ctx, json, llm_help, config, url, db, username, password, timeout, no_ve
     # Create and store context
     ctx.obj = CliContext(
         config=config_dict,
-        json_mode=json,
+        json_mode=json_mode,
         console=console
     )
 

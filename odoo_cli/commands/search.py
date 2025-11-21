@@ -5,7 +5,7 @@ Search records with domain filter command
 import click
 from odoo_cli.client import OdooClient
 from odoo_cli.models.context import CliContext
-from odoo_cli.utils import output_json, output_error, parse_json_arg, format_table, confirm_large_dataset
+from odoo_cli.utils import output_json as print_json, output_error, parse_json_arg, format_table, confirm_large_dataset
 from odoo_cli.utils.context_parser import parse_context_flags
 
 
@@ -16,8 +16,9 @@ from odoo_cli.utils.context_parser import parse_context_flags
 @click.option('--limit', type=int, default=20, help='Maximum results to return')
 @click.option('--offset', type=int, default=0, help='Skip first N results')
 @click.option('--context', multiple=True, help='Context key=value (e.g., --context active_test=false)')
+@click.option('--json', 'output_json', is_flag=True, default=None, help='Output pure JSON (LLM-friendly)')
 @click.pass_obj
-def search(ctx: CliContext, model: str, domain: str, fields: str, limit: int, offset: int, context: tuple):
+def search(ctx: CliContext, model: str, domain: str, fields: str, limit: int, offset: int, context: tuple, output_json: bool):
     """
     Search records with domain filter
 
@@ -26,6 +27,9 @@ def search(ctx: CliContext, model: str, domain: str, fields: str, limit: int, of
         odoo search res.partner '[["is_company", "=", true]]' --fields name,email --limit 10
         odoo search sale.order '[["state", "=", "sale"]]' --json
     """
+    # Determine JSON mode (command flag takes precedence over global)
+    json_mode = output_json if output_json is not None else ctx.json_mode
+
     # Parse domain
     try:
         parsed_domain = parse_json_arg(domain, 'domain')
@@ -37,7 +41,7 @@ def search(ctx: CliContext, model: str, domain: str, fields: str, limit: int, of
             error_type='data',
             suggestion='Domain must be a valid JSON array, e.g., \'[["name", "=", "test"]]\'',
             console=ctx.console,
-            json_mode=ctx.json_mode,
+            json_mode=json_mode,
             exit_code=3
         )
 
@@ -57,7 +61,7 @@ def search(ctx: CliContext, model: str, domain: str, fields: str, limit: int, of
                 error_type='data',
                 suggestion='Context must be in format key=value (e.g., active_test=false)',
                 console=ctx.console,
-                json_mode=ctx.json_mode,
+                json_mode=json_mode,
                 exit_code=3
             )
 
@@ -79,7 +83,7 @@ def search(ctx: CliContext, model: str, domain: str, fields: str, limit: int, of
             details=str(e),
             suggestion='Check URL and network connectivity',
             console=ctx.console,
-            json_mode=ctx.json_mode,
+            json_mode=json_mode,
             exit_code=1
         )
     except ValueError as e:
@@ -89,14 +93,14 @@ def search(ctx: CliContext, model: str, domain: str, fields: str, limit: int, of
             details=str(e),
             suggestion='Verify credentials in configuration',
             console=ctx.console,
-            json_mode=ctx.json_mode,
+            json_mode=json_mode,
             exit_code=2
         )
 
     # Search records
     try:
         # First get count if not in JSON mode
-        if not ctx.json_mode:
+        if not json_mode:
             count = client.search_count(model, parsed_domain, context=parsed_context)
             if count > 500 and not confirm_large_dataset(count):
                 ctx.console.print("[yellow]Operation cancelled[/yellow]")
@@ -112,7 +116,7 @@ def search(ctx: CliContext, model: str, domain: str, fields: str, limit: int, of
             context=parsed_context
         )
 
-        if ctx.json_mode:
+        if json_mode:
             # Get total count for JSON output
             count = client.search_count(model, parsed_domain, context=parsed_context)
             data = {
@@ -122,7 +126,7 @@ def search(ctx: CliContext, model: str, domain: str, fields: str, limit: int, of
             }
             if count > 500:
                 data['truncated'] = True
-            output_json(data)
+            print_json(data)
         else:
             if results:
                 # Format as table
@@ -157,6 +161,6 @@ def search(ctx: CliContext, model: str, domain: str, fields: str, limit: int, of
             details=error_msg,
             suggestion=suggestion,
             console=ctx.console,
-            json_mode=ctx.json_mode,
+            json_mode=json_mode,
             exit_code=3
         )
