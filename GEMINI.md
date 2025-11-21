@@ -53,7 +53,7 @@ odoo-cli --json search res.partner '[]'              # 3. Global flag (legacy)
 - `--context key=value` - Odoo context (lang, company, timezone)
 - `--limit N` - Limit results
 
-## Core Commands (v1.4.1)
+## Core Commands (v1.5.0)
 
 ### CRUD Operations
 ```bash
@@ -199,14 +199,15 @@ pytest --cov=odoo_cli    # With coverage
 
 ## Current Version
 
-**v1.4.0 - Quick Wins Bundle**
-- 16 commands total
-- CRUD + batch operations
-- Aggregation helper
+**v1.5.0 - Project Context Layer for LLM Agents**
+- 19 commands total (16 core + 3 context commands)
+- CRUD + batch operations, aggregation, context management
 - Quick wins (search-count, name-get, name-search)
-- Context management
+- **NEW:** Context commands (`context show`, `context guide`, `context validate`)
+- Business metadata support via `.odoo-context.json` files
+- Task-specific guidance for LLM agents
 
-**Next: v1.5.0 - Environment Profiles**
+**Next: v1.6.0 - Environment Profiles**
 - Spec ready in `.specify/features/001_environment_profiles/`
 - Easy prod/staging/dev switching
 

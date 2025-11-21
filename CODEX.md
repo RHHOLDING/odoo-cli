@@ -24,7 +24,7 @@ Quick briefing for OpenAI/Codex/ChatGPT-style assistants working on this public 
 ## Key Files & References
 - `README.md` main docs; `CHANGELOG.md` version history; `docs/` deeper guides
 - `CLAUDE.md` canonical guidelines; keep this file in sync
-- `.specify/` feature specs; current next feature: environment profiles (`.specify/features/001_environment_profiles/`)
+- `.specify/` feature specs; latest shipped: context layer (`.specify/features/003_als_llm_agent_...`); next: environment profiles (`.specify/features/001_environment_profiles/`)
 - `odoo_cli/help.py` drives `--llm-help` and decision trees; `odoo_cli/commands/` holds CLI commands
 
 ## Common Tasks
@@ -34,9 +34,10 @@ Quick briefing for OpenAI/Codex/ChatGPT-style assistants working on this public 
 - Releases: bump version in `pyproject.toml`, update `CHANGELOG.md`, align `--llm-help` version; tag as `vX.Y.Z`
 
 ## Roadmap Snapshot
-- **v1.4.1 shipped:** LLM-friendly JSON output (command-level `--json`, `ODOO_CLI_JSON` env var, all 16 commands updated)
+- **v1.5.0 shipped:** Project Context Layer for LLM agents (`context show`, `context guide`, `context validate`; `.odoo-context.json` files with business metadata)
+- v1.4.1 shipped: LLM-friendly JSON output (command-level `--json`, `ODOO_CLI_JSON` env var, all 16 commands updated)
 - v1.4.0 shipped: core CLI + CRUD/bulk ops, field parser/aggregation, search-count/name-get/name-search, context management
-- Next v1.5.0: environment profiles for prod/stage/dev switching (spec ready)
+- Next v1.6.0: environment profiles for prod/stage/dev switching
 
 ## Contribution Etiquette
 - Branch off feature branches; scoped PRs with tests and docs
