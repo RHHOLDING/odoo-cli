@@ -17,6 +17,7 @@ Quick briefing for OpenAI/Codex/ChatGPT-style assistants working on this public 
 ## LLM-First CLI
 - Standalone Python 3.10+ CLI (`odoo-cli`) for Odoo JSON-RPC; no Odoo dependencies
 - Outputs are machine-first: JSON by default, structured errors with `error_type`, predictable exit codes (0=success, 1=connection, 2=auth, 3=operation)
+- **JSON output (v1.4.1+):** Three ways: `--json` flag (command-level), `ODOO_CLI_JSON=1` env var (recommended for automation), or global `--json` flag
 - No interactive prompts/TUIs; Rich is fine for readability but JSON output is primary
 - Keep `--llm-help` comprehensive and deterministic; avoid unstructured tracebacks in normal flow
 
@@ -33,6 +34,7 @@ Quick briefing for OpenAI/Codex/ChatGPT-style assistants working on this public 
 - Releases: bump version in `pyproject.toml`, update `CHANGELOG.md`, align `--llm-help` version; tag as `vX.Y.Z`
 
 ## Roadmap Snapshot
+- **v1.4.1 shipped:** LLM-friendly JSON output (command-level `--json`, `ODOO_CLI_JSON` env var, all 16 commands updated)
 - v1.4.0 shipped: core CLI + CRUD/bulk ops, field parser/aggregation, search-count/name-get/name-search, context management
 - Next v1.5.0: environment profiles for prod/stage/dev switching (spec ready)
 

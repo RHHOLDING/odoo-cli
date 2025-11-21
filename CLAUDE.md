@@ -80,6 +80,45 @@ This structure allows LLMs to:
 2. Understand the error category (field_validation)
 3. Take corrective action (suggest alternatives, run get-fields)
 
+### JSON Output Modes (v1.4.1+)
+
+**Three ways to get JSON output (in priority order):**
+
+```bash
+# 1. Command-level flag (RECOMMENDED for LLMs)
+odoo-cli search res.partner '[]' --json
+
+# 2. Environment variable (set once, affects all commands)
+export ODOO_CLI_JSON=1
+odoo-cli search res.partner '[]'  # Automatic JSON output!
+
+# 3. Global flag (legacy method)
+odoo-cli --json search res.partner '[]'
+```
+
+**Priority:** Command `--json` > `ODOO_CLI_JSON` > Global `--json` > Default (Rich output)
+
+**For LLM automation:**
+- Set `ODOO_CLI_JSON=1` in your environment once
+- All commands return structured JSON automatically
+- No need to add `--json` to every command
+- Perfect for scripting and automation workflows
+
+**Example: Python automation**
+```python
+import os
+import subprocess
+import json
+
+# Set once for all commands
+os.environ['ODOO_CLI_JSON'] = '1'
+
+# All commands return JSON automatically
+result = subprocess.run(['odoo-cli', 'search', 'res.partner', '[]'],
+                       capture_output=True, text=True)
+data = json.loads(result.stdout)
+```
+
 ## Security & Privacy
 
 **Public Repository Security:**
@@ -95,7 +134,10 @@ This structure allows LLMs to:
 
 ## Current Version
 
-**v1.4.0 - Quick Wins Bundle**
+**v1.4.1 - LLM-Friendly JSON Output**
+- ✅ Command-level `--json` flag (all 16 commands)
+- ✅ `ODOO_CLI_JSON` environment variable support
+- ✅ Three ways to get JSON output (command flag, env var, global flag)
 - ✅ Core CLI + JSON-RPC client
 - ✅ CRUD commands (create, read, update, delete + bulk)
 - ✅ Field parser & aggregation

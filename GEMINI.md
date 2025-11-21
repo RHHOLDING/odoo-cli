@@ -41,12 +41,19 @@ ODOO_PASSWORD=your-password
 odoo-cli [command] [model] [arguments] [options]
 ```
 
-**Global options:**
-- `--json` - JSON output (for LLM parsing)
+**JSON Output Options (v1.4.1+):**
+```bash
+# Three ways to get JSON output:
+odoo-cli search res.partner '[]' --json              # 1. Command-level (RECOMMENDED)
+export ODOO_CLI_JSON=1; odoo-cli search ...         # 2. Environment variable
+odoo-cli --json search res.partner '[]'              # 3. Global flag (legacy)
+```
+
+**Other Global options:**
 - `--context key=value` - Odoo context (lang, company, timezone)
 - `--limit N` - Limit results
 
-## Core Commands (v1.4.0)
+## Core Commands (v1.4.1)
 
 ### CRUD Operations
 ```bash
