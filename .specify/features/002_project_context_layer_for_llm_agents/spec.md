@@ -8,6 +8,16 @@
 
 ---
 
+## Clarifications
+
+### Session 2025-01-21
+
+- Q: Should the context file include record counts per model to help LLMs estimate query performance? → A: Optional (configurable via `--include-counts` flag in `context init`)
+- Q: Should the context file be per-environment (prod/staging/dev) or shared across environments? → A: Shared (single `.odoo-context.json` across all environments)
+- Q: What level of logging/observability should context operations provide for debugging and monitoring? → A: Minimal (basic error messages only)
+
+---
+
 ## Problem Statement
 
 **What problem does this solve?**
@@ -72,6 +82,7 @@ Implement a `odoo-cli context` command group that discovers and caches project-s
 - [ ] Stores company information
 - [ ] Creates `.odoo-context.json` in project root
 - [ ] Returns JSON summary of discovered context
+- [ ] Optional `--include-counts` flag adds record counts per model for query performance estimation
 
 #### FR-2: Context Refresh
 **Description:** Update cached context when project changes
@@ -137,6 +148,14 @@ Implement a `odoo-cli context` command group that discovers and caches project-s
 - Compressed if necessary
 - Only essential metadata (no record data)
 
+#### NFR-3: Observability
+**Description:** Minimal logging for debugging context operations
+**Metric:**
+- Basic error messages to stderr for failures
+- Success/failure exit codes (0 for success, non-zero for error)
+- No verbose logging or progress indicators (keeps CLI output clean)
+- Errors include actionable messages (e.g., "Context file corrupted. Run `odoo-cli context init` to recreate.")
+
 ---
 
 ## User Stories
@@ -182,6 +201,10 @@ Implement a `odoo-cli context` command group that discovers and caches project-s
 odoo-cli context init
 # Output: Discovered 1247 models, 8432 fields, 156 modules
 
+# Initialize with record counts (optional, for LLM query optimization)
+odoo-cli context init --include-counts
+# Output: Discovered 1247 models (102100 total records), 8432 fields, 156 modules
+
 # Refresh context (after installing modules)
 odoo-cli context refresh
 # Output: +3 models, +47 fields, +2 modules
@@ -217,12 +240,14 @@ odoo-cli context clear
     "res.partner": {
       "custom_fields": ["x_studio_field_1"],
       "key_fields": ["name", "email", "phone"],
-      "module": "base"
+      "module": "base",
+      "record_count": 102100
     },
     "helpdesk.ticket": {
       "custom_fields": ["x_priority_score"],
       "key_fields": ["name", "partner_id", "stage_id"],
-      "module": "actec_helpdesk_enh"
+      "module": "actec_helpdesk_enh",
+      "record_count": 3847
     }
   },
   "modules": {
@@ -362,7 +387,7 @@ class ProjectContext:
    Handling: Paginated discovery, compressed storage, optional filtering
 
 4. **Multiple Odoo environments (prod/staging/dev)**
-   Handling: Context file includes environment identifier, warn on mismatch
+   Handling: Single shared context file across environments. User responsible for re-initializing context when switching environments if structure differs significantly.
 
 5. **Context file out of sync after module uninstall**
    Handling: `context refresh` detects removed models, prompts for cleanup
@@ -445,9 +470,9 @@ This is a PUBLIC open-source repository. Context files may contain project-speci
 
 ## Open Questions
 
-1. Should context include record counts per model? (helps LLMs estimate query performance)
+1. ~~Should context include record counts per model?~~ **RESOLVED:** Optional via `--include-counts` flag
 2. Should context track field usage frequency? (helps LLMs suggest common fields)
-3. Should context be per-environment or shared? (likely per-environment)
+3. ~~Should context be per-environment or shared?~~ **RESOLVED:** Shared single file across environments
 4. Should context include custom Python code paths for modules? (helps with debugging)
 5. Should context cache example records for reference? (NO - too large, privacy concern)
 
