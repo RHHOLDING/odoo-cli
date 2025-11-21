@@ -1,0 +1,181 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Odoo Context Schema",
+  "description": "JSON schema for .odoo-context.json project context files",
+  "type": "object",
+  "required": ["schema_version"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "description": "Schema version for backward compatibility",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+      "examples": ["1.0.0"]
+    },
+    "project": {
+      "type": "object",
+      "description": "Project metadata",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Project name",
+          "examples": ["Azure Interior Production"]
+        },
+        "description": {
+          "type": "string",
+          "description": "Project description",
+          "examples": ["Main ERP instance for furniture manufacturing"]
+        },
+        "odoo_version": {
+          "type": "string",
+          "description": "Odoo version",
+          "examples": ["17.0", "16.0", "15.0"]
+        }
+      }
+    },
+    "companies": {
+      "type": "array",
+      "description": "List of companies and their business roles",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "name"],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "Company ID in Odoo",
+            "examples": [1, 2, 3]
+          },
+          "name": {
+            "type": "string",
+            "description": "Company name",
+            "examples": ["Azure Interior", "Marketplace Hub"]
+          },
+          "role": {
+            "type": "string",
+            "description": "Business role of the company",
+            "examples": ["Main manufacturing company", "E-commerce operations"]
+          },
+          "context": {
+            "type": "string",
+            "description": "Context about the company's operations",
+            "examples": ["Handles all production and B2B sales"]
+          }
+        }
+      }
+    },
+    "warehouses": {
+      "type": "array",
+      "description": "List of warehouses and their purposes",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "name"],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "Warehouse ID in Odoo",
+            "examples": [1, 2, 3]
+          },
+          "name": {
+            "type": "string",
+            "description": "Warehouse name",
+            "examples": ["Main Warehouse", "Transit Hub"]
+          },
+          "company_id": {
+            "type": "integer",
+            "description": "Associated company ID",
+            "examples": [1, 2]
+          },
+          "role": {
+            "type": "string",
+            "description": "Role or purpose of the warehouse",
+            "examples": ["Production storage", "Distribution center"]
+          },
+          "context": {
+            "type": "string",
+            "description": "Additional context about the warehouse",
+            "examples": ["Raw materials and finished goods"]
+          }
+        }
+      }
+    },
+    "workflows": {
+      "type": "array",
+      "description": "List of critical workflows and their rules",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Workflow name",
+            "examples": ["Purchase Approval", "Sales Order Validation"]
+          },
+          "critical": {
+            "type": "boolean",
+            "description": "Whether this is a critical workflow",
+            "default": false,
+            "examples": [true, false]
+          },
+          "context": {
+            "type": "string",
+            "description": "Rules and context for this workflow",
+            "examples": ["Requires dual approval for purchases > 10k EUR"]
+          }
+        }
+      }
+    },
+    "modules": {
+      "type": "array",
+      "description": "List of custom modules and their purposes",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Module name",
+            "examples": ["custom_mrp_workflow", "sale_custom_validator"]
+          },
+          "purpose": {
+            "type": "string",
+            "description": "Purpose of the custom module",
+            "examples": ["Custom manufacturing workflow for furniture"]
+          },
+          "context": {
+            "type": "string",
+            "description": "Context about what the module does",
+            "examples": ["Handles multi-step production with quality checks"]
+          }
+        }
+      }
+    },
+    "notes": {
+      "type": "object",
+      "description": "Freeform notes about the project",
+      "additionalProperties": false,
+      "properties": {
+        "common_tasks": {
+          "type": "array",
+          "description": "Common operations and recommendations",
+          "items": {
+            "type": "string"
+          },
+          "examples": [["Most sales orders go through company_id=2 (Marketplace Hub)"]]
+        },
+        "pitfalls": {
+          "type": "array",
+          "description": "Common mistakes or gotchas to avoid",
+          "items": {
+            "type": "string"
+          },
+          "examples": [["Warehouse transfers between company 1 and 2 require manual approval"]]
+        }
+      }
+    }
+  }
+}

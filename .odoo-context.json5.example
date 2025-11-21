@@ -1,0 +1,169 @@
+//
+// Project Context Template (.odoo-context.json5)
+//
+// This is a template for project-specific business context.
+// Copy this file to .odoo-context.json (rename to remove .5 and inline comments)
+// and customize with your Odoo instance metadata.
+//
+// IMPORTANT: .odoo-context.json is NOT committed to version control.
+// Add .odoo-context.json to .gitignore to prevent accidental credential exposure.
+// Only .odoo-context.json5.example (this file) is committed.
+//
+// ===== DO's =====
+// ✓ Use business-friendly descriptions (not just technical IDs)
+// ✓ Document critical workflows and their rules
+// ✓ Include warehouse/company mappings for clarity
+// ✓ Keep file updated as your Odoo instance evolves
+// ✓ Use for LLM context to improve recommendations
+//
+// ===== DON'Ts =====
+// ✗ NEVER include passwords, API keys, or tokens
+// ✗ NEVER include real customer data or email addresses
+// ✗ NEVER commit .odoo-context.json to version control
+// ✗ NEVER put this file in a public repository without review
+//
+// ===== Security Best Practices =====
+// - Use 'odoo-cli context validate' to check for exposed secrets
+// - Treat this file like a .env file (local-only, never committed)
+// - Use generic demo data in examples (Azure Interior, Deco Addict, etc.)
+// - Regularly review for accidental credential inclusion
+//
+
+{
+  // Schema version for backward compatibility
+  // Must be present in all context files
+  "schema_version": "1.0.0",
+
+  // Project metadata - describes your Odoo instance
+  "project": {
+    "name": "Azure Interior Production",
+    "description": "Main ERP instance for furniture manufacturing and e-commerce",
+    "odoo_version": "17.0"
+  },
+
+  // Companies - define business roles and purposes
+  // Use this to help LLMs understand which company to use for operations
+  "companies": [
+    {
+      "id": 1,
+      "name": "Azure Interior",
+      "role": "Main manufacturing company",
+      "context": "Handles all production, B2B sales, and inventory management. This is the primary company for manufacturing operations."
+    },
+    {
+      "id": 2,
+      "name": "Marketplace Hub",
+      "role": "E-commerce operations",
+      "context": "Highest volume, B2C sales through online marketplaces. Uses automated workflows and has highest transaction velocity."
+    },
+    {
+      "id": 3,
+      "name": "Regional Distributor",
+      "role": "Wholesale distribution",
+      "context": "Handles bulk orders to regional partners. Lower transaction volume but higher order values."
+    }
+  ],
+
+  // Warehouses - document your logistics network
+  // Help LLMs understand inventory locations and transfer rules
+  "warehouses": [
+    {
+      "id": 1,
+      "name": "Main Warehouse",
+      "company_id": 1,
+      "role": "Production storage and primary inventory",
+      "context": "Houses raw materials (textiles, wood, hardware) and finished goods. Connected to production floor."
+    },
+    {
+      "id": 2,
+      "name": "Distribution Center",
+      "company_id": 2,
+      "role": "E-commerce fulfillment",
+      "context": "Handles B2C order fulfillment. Optimized for fast picking and packing. Fully automated for company_id=2."
+    },
+    {
+      "id": 3,
+      "name": "Regional Transit Hub",
+      "company_id": 3,
+      "role": "Wholesale consolidation",
+      "context": "Consolidates shipments for regional distributors. Cross-docking operations only."
+    }
+  ],
+
+  // Workflows - document critical business processes
+  // Use this to warn LLMs about process requirements
+  "workflows": [
+    {
+      "name": "Purchase Approval",
+      "critical": true,
+      "context": "Requires dual approval for purchases > €10,000. PO cannot proceed without both approvals. Escalates to CFO for amounts > €50,000. Average approval time: 2-3 business days."
+    },
+    {
+      "name": "Production Order Release",
+      "critical": true,
+      "context": "Manufacturing orders must pass quality planning review before release to production. Automatic rejection if BOMs have missing components."
+    },
+    {
+      "name": "Sales Order Validation",
+      "critical": false,
+      "context": "Automatic validation for orders < €1,000 with stock available. Manual review required for custom production orders or backorders."
+    },
+    {
+      "name": "Inventory Transfer",
+      "critical": true,
+      "context": "Transfers between company 1 and 2 require manual approval. Cross-company transfers trigger automated compliance checks."
+    },
+    {
+      "name": "Invoice Posting",
+      "critical": false,
+      "context": "Automatic posting for standard sales. Manual posting required for credit memos or amended invoices."
+    }
+  ],
+
+  // Modules - document custom extensions
+  // Help LLMs understand custom functionality
+  "modules": [
+    {
+      "name": "custom_mrp_workflow",
+      "purpose": "Custom manufacturing workflow with quality gates",
+      "context": "Adds multi-step production with quality checkpoints. Handles fabric cutting, assembly, QC, and packaging stages. Requires 'quality' and 'mrp' modules as dependencies."
+    },
+    {
+      "name": "sale_custom_validator",
+      "purpose": "Company-specific sales order validation rules",
+      "context": "Validates orders based on company-specific logic: company 1 requires PO numbers, company 2 uses automated routing, company 3 requires contract reference."
+    },
+    {
+      "name": "procurement_automation",
+      "purpose": "Automated purchase order generation",
+      "context": "Automatically creates POs based on stock levels and sales forecasts. Does NOT apply to company 3 (manual procurement)."
+    },
+    {
+      "name": "report_custom_dashboards",
+      "purpose": "Custom reporting and analytics",
+      "context": "Provides company-level KPIs, production metrics, and e-commerce analytics. Updates daily at 02:00 UTC."
+    }
+  ],
+
+  // Notes - freeform business knowledge
+  // General context that doesn't fit other sections
+  "notes": {
+    "common_tasks": [
+      "Default company for new sales orders: company_id=2 (Marketplace Hub)",
+      "Default warehouse for inventory transfers: warehouse_id=1 (Main Warehouse)",
+      "Production planning uses warehouse 1 and company 1 exclusively",
+      "E-commerce sales route through company 2 and warehouse 2 automatically",
+      "Never modify archived products without inventory team approval",
+      "Always check company 3 contract requirements before confirming wholesale orders"
+    ],
+    "pitfalls": [
+      "Warehouse transfers between company 1 and 2 require manual approval - do not assume automatic",
+      "Purchase Approval workflow blocks orders > €10k indefinitely until manager approves",
+      "Custom modules have specific installation order dependency - 'quality' must be installed before 'custom_mrp_workflow'",
+      "Company 3 (Regional Distributor) cannot use automated procurement - all POs must be manual",
+      "Backorders in company 2 automatically generate manufacturing orders to company 1 - monitor closely",
+      "Production orders cannot be edited after release to production - use work orders instead",
+      "Inventory forecasting disabled for seasonal products (May-September) - manual planning required"
+    ]
+  }
+}

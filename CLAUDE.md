@@ -134,20 +134,25 @@ data = json.loads(result.stdout)
 
 ## Current Version
 
-**v1.4.1 - LLM-Friendly JSON Output**
-- ✅ Command-level `--json` flag (all 16 commands)
-- ✅ `ODOO_CLI_JSON` environment variable support
-- ✅ Three ways to get JSON output (command flag, env var, global flag)
+**v1.5.0 - Project Context Layer for LLM Agents**
+- ✅ `context show` command - Display business metadata
+- ✅ `context guide --task` command - Task-specific context guidance
+- ✅ `context validate` command - Validate context files (normal & strict modes)
+- ✅ `.odoo-context.json` support - Manually-maintained business context
+- ✅ JSON Schema validation - Strict mode schema enforcement
+- ✅ Security scanning - Detect "password"/"token" literals
+- ✅ All 19 commands with JSON output support
 - ✅ Core CLI + JSON-RPC client
 - ✅ CRUD commands (create, read, update, delete + bulk)
 - ✅ Field parser & aggregation
 - ✅ Context management (multi-company, translations, archived)
 - ✅ Quick wins: search-count, name-get, name-search, fields_get optimization
 
-**Next: v1.5.0 - Environment Profiles**
+**Next: v1.6.0 - Environment Profiles**
 - Specification ready in `.specify/features/001_environment_profiles/`
 - Easy switching between prod/staging/dev environments
 - Per-profile configurations
+- Integration with context layer
 
 ## Development Workflow
 

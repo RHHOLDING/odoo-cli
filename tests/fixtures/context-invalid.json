@@ -1,0 +1,11 @@
+{
+  "schema_version": "1.0.0",
+  "project": {
+    "description": "Missing required 'name' field",
+    "odoo_version": "17.0"
+  },
+  "companies": [],
+  "notes": {
+    "secret_api_password": "exposed_secret"
+  }
+}

@@ -22,6 +22,16 @@ echo "✅ Update complete!"
 odoo-cli --version
 
 echo
+echo "🎉 v1.5.0 - New Feature: Business Context for LLM Agents"
+echo "   - odoo-cli context show         # Display business metadata"
+echo "   - odoo-cli context guide --task # Task-specific guidance"
+echo "   - odoo-cli context validate     # Validate context files"
+echo
+echo "📖 Setup context for your project:"
+echo "   cp .odoo-context.json5.example .odoo-context.json"
+echo "   # Edit with your business metadata"
+echo "   odoo-cli context validate --strict"
+echo
 echo "📝 To enable JSON output by default:"
 echo "   export ODOO_CLI_JSON=1"
 echo

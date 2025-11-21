@@ -5,6 +5,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - Project Context Layer for LLM Agents
+
+### Added
+- **Business context feature** - Help LLM agents understand your Odoo setup
+  - `context show` - Display project-specific business metadata
+  - `context guide --task` - Get task-specific guidance (4 predefined tasks)
+  - `context validate` - Validate context files (normal and strict modes)
+- **`.odoo-context.json` support** - Manually-maintained context file for LLM integration
+  - Defines companies, warehouses, workflows, critical modules, business rules
+  - `.odoo-context.json5.example` template with comprehensive inline documentation
+  - Automatically gitignored to prevent credential exposure
+- **JSON Schema validation** - `odoo_cli/schemas/context_schema.json` for strict mode validation
+- **Security scanning** - Automatic detection of literal "password"/"token" strings in context files
+
+### LLM Integration
+- LLM agents can query business context without analyzing Odoo API
+- Task mappings: create-sales-order, manage-inventory, purchase-approval, production-workflow
+- All context commands support `--json` for LLM-friendly output
+- Clear error messages and validation suggestions for misconfigured files
+
+### New Files
+- `odoo_cli/context.py` - ContextManager class
+- `odoo_cli/commands/context.py` - Context CLI commands
+- `.odoo-context.json5.example` - Template with examples and security guidance
+- `odoo_cli/schemas/context_schema.json` - JSON Schema for validation
+
+### Documentation
+- README.md updated with "Business Context for LLM Agents" section
+- Comprehensive example context file with Azure Interior demo data
+- Security best practices guide for context files
+- Decision trees in `--llm-help` for context command usage
+
 ## [1.4.1] - 2025-11-21
 
 ### Added

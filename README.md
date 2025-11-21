@@ -554,6 +554,88 @@ odoo-cli get-models --no-verify-ssl
 export ODOO_NO_VERIFY_SSL=true
 ```
 
+## Business Context for LLM Agents
+
+The `context` command group provides access to project-specific business metadata, helping LLM agents (Claude, GPT) understand your Odoo setup and make better recommendations.
+
+### Setup
+
+1. Copy the template to your project:
+```bash
+cp .odoo-context.json5.example .odoo-context.json
+```
+
+2. Customize with your business knowledge:
+```json
+{
+  "schema_version": "1.0.0",
+  "project": {
+    "name": "Your Company",
+    "description": "Your Odoo instance purpose",
+    "odoo_version": "17.0"
+  },
+  "companies": [
+    {
+      "id": 1,
+      "name": "Company A",
+      "role": "Main manufacturing",
+      "context": "Handles production and B2B sales"
+    }
+  ],
+  "warehouses": [...],
+  "workflows": [...],
+  "modules": [...],
+  "notes": {...}
+}
+```
+
+3. Validate your context file:
+```bash
+odoo-cli context validate --strict
+```
+
+### Commands
+
+| Command | Description | Example |
+|---------|-------------|---------|
+| `context show` | Display all business context | `odoo-cli context show` |
+| `context show --section companies` | Filter by section | `odoo-cli context show --section companies --json` |
+| `context guide --task` | Get task-specific guidance | `odoo-cli context guide --task create-sales-order` |
+| `context validate` | Validate context file | `odoo-cli context validate --strict` |
+
+### Available Tasks for Guidance
+
+- `create-sales-order` - Returns relevant companies and warehouses
+- `manage-inventory` - Returns warehouses and relevant modules
+- `purchase-approval` - Returns approval workflows and companies
+- `production-workflow` - Returns production modules and workflows
+
+### Example Workflow
+
+```bash
+# 1. Show all context
+odoo-cli context show
+
+# 2. Get task-specific guidance (for LLM agents)
+odoo-cli context guide --task create-sales-order --json
+
+# 3. Validate your context file
+odoo-cli context validate
+
+# 4. Use in scripts/automation
+context=$(odoo-cli context show --section companies --json)
+echo "$context"  # Pass to LLM for context-aware recommendations
+```
+
+### Security
+
+⚠️ **Important**: The `.odoo-context.json` file is automatically added to `.gitignore` and should NEVER be committed to version control.
+
+- Store only business metadata (no passwords, tokens, or credentials)
+- Use generic demo data in examples
+- Regularly validate with `odoo-cli context validate`
+- Only the `.odoo-context.json5.example` template is committed
+
 ## Security Best Practices
 
 1. **Never commit credentials**:

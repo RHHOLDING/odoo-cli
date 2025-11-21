@@ -1,0 +1,74 @@
+{
+  "schema_version": "1.0.0",
+  "project": {
+    "name": "Azure Interior Production",
+    "description": "Main ERP instance for furniture manufacturing",
+    "odoo_version": "17.0"
+  },
+  "companies": [
+    {
+      "id": 1,
+      "name": "Azure Interior",
+      "role": "Main manufacturing company",
+      "context": "Handles all production and B2B sales"
+    },
+    {
+      "id": 2,
+      "name": "Marketplace Hub",
+      "role": "E-commerce operations",
+      "context": "Highest volume, B2C sales, uses automated workflows"
+    }
+  ],
+  "warehouses": [
+    {
+      "id": 1,
+      "name": "Main Warehouse",
+      "company_id": 1,
+      "role": "Production storage",
+      "context": "Raw materials and finished goods"
+    },
+    {
+      "id": 2,
+      "name": "Distribution Center",
+      "company_id": 2,
+      "role": "E-commerce fulfillment",
+      "context": "Handles B2C order fulfillment"
+    }
+  ],
+  "workflows": [
+    {
+      "name": "Purchase Approval",
+      "critical": true,
+      "context": "Requires dual approval for purchases > 10k EUR"
+    },
+    {
+      "name": "Sales Order Validation",
+      "critical": false,
+      "context": "Automatic validation for orders < 1000 EUR"
+    }
+  ],
+  "modules": [
+    {
+      "name": "custom_mrp_workflow",
+      "purpose": "Custom manufacturing workflow for furniture",
+      "context": "Handles multi-step production with quality checks"
+    },
+    {
+      "name": "sale_custom_validator",
+      "purpose": "Custom sales order validation",
+      "context": "Validates based on company-specific rules"
+    }
+  ],
+  "notes": {
+    "common_tasks": [
+      "Most sales orders go through company_id=2 (Marketplace Hub)",
+      "Never modify archived products without checking with inventory team",
+      "Use warehouse 1 for manufacturing, warehouse 2 for retail fulfillment"
+    ],
+    "pitfalls": [
+      "Warehouse transfers between company 1 and 2 require manual approval",
+      "Purchase Approval workflow blocks orders > 10k EUR until approved",
+      "Custom modules depend on specific module installation order"
+    ]
+  }
+}
