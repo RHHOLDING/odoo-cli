@@ -409,18 +409,34 @@ odoo-cli search res.partner '[]' \
 The CLI is optimized for use with AI assistants like Claude, GPT, and others:
 
 ### JSON Output Mode
+
+**Three ways to enable JSON output:**
+
 ```bash
-# Always use --json flag for parsing
+# 1. Command-level flag (most intuitive, LLM-friendly)
 odoo-cli search res.partner '[]' --json
 
-# Output structure
+# 2. Environment variable (set once, affects all commands)
+export ODOO_CLI_JSON=1
+odoo-cli search res.partner '[]'
+
+# 3. Global flag (original method)
+odoo-cli --json search res.partner '[]'
+```
+
+**Priority:** Command `--json` > `ODOO_CLI_JSON` > Global `--json` > Default (Rich output)
+
+**Output structure:**
+```json
 {
   "success": true,
   "data": [...],
   "count": 150
 }
+```
 
-# Error structure
+**Error structure:**
+```json
 {
   "success": false,
   "error": "Authentication failed",
@@ -439,10 +455,14 @@ odoo-cli search res.partner '[]' --json
 ```python
 import subprocess
 import json
+import os
+
+# Option 1: Set environment variable once
+os.environ['ODOO_CLI_JSON'] = '1'
 
 def run_odoo_command(cmd_list):
     result = subprocess.run(
-        cmd_list + ['--json'],
+        cmd_list,
         capture_output=True,
         text=True
     )
@@ -452,10 +472,13 @@ def run_odoo_command(cmd_list):
     else:
         return json.loads(result.stderr)
 
-# Usage
-data = run_odoo_command(['odoo', 'search', 'res.partner', '[]'])
+# Usage (no --json flag needed!)
+data = run_odoo_command(['odoo-cli', 'search', 'res.partner', '[]'])
 if data['success']:
     print(f"Found {len(data['data'])} partners")
+
+# Option 2: Use --json flag per command
+data = run_odoo_command(['odoo-cli', 'search', 'res.partner', '[]', '--json'])
 ```
 
 ## Interactive Shell
