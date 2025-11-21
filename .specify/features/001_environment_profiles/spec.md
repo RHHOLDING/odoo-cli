@@ -198,25 +198,25 @@ password: "secret"
 # New profile format
 profiles:
   prod:
-    url: "https://rhholding.odoo.com"
-    db: "rhholding-production-10209498"
-    username: "admin@actec.de"
+    url: "https://your-instance.odoo.com"
+    db: "your-instance-prod-db"
+    username: "admin@example.com"
     password: "prod-password"
     timeout: 60
     verify_ssl: true
     default: true  # Used when no profile specified
 
   staging:
-    url: "https://rhholding-staging.odoo.com"
-    db: "rhholding-staging"
-    username: "admin@actec.de"
+    url: "https://your-instance-staging.odoo.com"
+    db: "your-instance-staging-db"
+    username: "admin@example.com"
     password: "staging-password"
     timeout: 30
 
   dev:
-    url: "https://rhholding-ac-mail2-25724858.dev.odoo.com"
-    db: "rhholding-ac-mail2-25724858"
-    username: "mcp@ananda.gmbh"
+    url: "https://your-instance-dev.dev.odoo.com"
+    db: "your-instance-dev-db"
+    username: "dev@example.com"
     password: "dev-password"
 
   local:
@@ -421,8 +421,8 @@ class ProfileManager:
 
 **Before (legacy):**
 ```yaml
-url: "https://rhholding.odoo.com"
-db: "rhholding-production"
+url: "https://your-instance.odoo.com"
+db: "your-instance-prod-db"
 username: "admin"
 password: "secret"
 ```
@@ -430,16 +430,16 @@ password: "secret"
 **After (with profiles):**
 ```yaml
 # Legacy still works (becomes implicit default profile)
-url: "https://rhholding.odoo.com"
-db: "rhholding-production"
+url: "https://your-instance.odoo.com"
+db: "your-instance-prod-db"
 username: "admin"
 password: "secret"
 
 # Or migrate to explicit profiles
 profiles:
   prod:
-    url: "https://rhholding.odoo.com"
-    db: "rhholding-production"
+    url: "https://your-instance.odoo.com"
+    db: "your-instance-prod-db"
     username: "admin"
     password: "secret"
     default: true

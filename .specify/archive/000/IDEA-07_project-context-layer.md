@@ -440,8 +440,8 @@ project:
   name: "RH Holding Production"
   odoo_version: "16.0"
   environment: "production"
-  database: "rhholding-production-10209498"
-  url: "https://rhholding.odoo.com"
+  database: "your-instance-db-12345"
+  url: "https://your-instance.odoo.com"
   last_updated: "2025-11-21"
   maintainer: "andre@ananda.gmbh"
 
