@@ -25,6 +25,9 @@ def group_by_fields(updates: Dict[str, Dict]) -> Dict[str, List[int]]:
 
     Returns: {field_tuple: [id1, id2, ...], ...}
     """
+    # Determine JSON mode (command flag takes precedence over global)
+    json_mode = output_json if output_json is not None else ctx.json_mode
+
     field_groups = {}
 
     for record_id_str, fields in updates.items():
@@ -45,12 +48,11 @@ def group_by_fields(updates: Dict[str, Dict]) -> Dict[str, List[int]]:
               help='JSON file with record updates')
 @click.option('--batch-size', type=int, default=100,
               help='Number of records per batch (default: 100)')
-@click.option('--json', 'json_mode', is_flag=True,
-              help='Output result as JSON')
 @click.option('--context', multiple=True,
               help='Context key=value (e.g., --context active_test=false)')
+@click.option('--json', 'output_json', is_flag=True, default=None, help='Output pure JSON (LLM-friendly)')
 @click.pass_context
-def update_bulk(ctx, model: str, file: str, batch_size: int, json_mode: bool, context: tuple):
+def update_bulk(ctx, model: str, file: str, batch_size: int, context: tuple, output_json: bool):
     """
     Update multiple records from a JSON file.
 

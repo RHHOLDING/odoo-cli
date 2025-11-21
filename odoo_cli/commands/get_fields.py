@@ -5,16 +5,16 @@ Get field definitions for a model command
 import click
 from odoo_cli.client import OdooClient
 from odoo_cli.models.context import CliContext
-from odoo_cli.utils import output_json, output_error, format_table
+from odoo_cli.utils import output_json as print_json, output_error, format_table
 
 
 @click.command('get-fields')
 @click.argument('model', type=str)
 @click.option('--field', type=str, help='Get specific field details')
 @click.option('--attributes', type=str, help='Comma-separated list of attributes to include (reduces payload size)')
-@click.option('--json', 'json_mode', is_flag=True, help='Output pure JSON')
+@click.option('--json', 'output_json', is_flag=True, default=None, help='Output pure JSON (LLM-friendly)')
 @click.pass_obj
-def get_fields(ctx: CliContext, model: str, field: str, attributes: str, json_mode: bool):
+def get_fields(ctx: CliContext, model: str, field: str, attributes: str, output_json: bool):
     """
     Get field definitions for a model
 
@@ -28,7 +28,7 @@ def get_fields(ctx: CliContext, model: str, field: str, attributes: str, json_mo
         odoo get-fields product.product --attributes type,string --json
     """
     # Combine local and global json flags
-    json_mode = json_mode or ctx.json_mode
+    json_mode = output_json if output_json is not None else ctx.json_mode
 
     # Create client
     try:
@@ -74,7 +74,7 @@ def get_fields(ctx: CliContext, model: str, field: str, attributes: str, json_mo
         fields_def = client.fields_get(model, allfields=allfields, attributes=parsed_attributes)
 
         if json_mode:
-            output_json(fields_def)
+            print_json(fields_def)
         else:
             if fields_def:
                 # Format as table

@@ -25,12 +25,11 @@ from odoo_cli.utils.context_parser import parse_context_flags
               help='Field values as key=value pairs (e.g., name="Test" or active=true)')
 @click.option('--no-validate', is_flag=True,
               help='Skip field validation (faster but less safe)')
-@click.option('--json', 'json_mode', is_flag=True,
-              help='Output result as JSON')
 @click.option('--context', multiple=True,
               help='Context key=value (e.g., --context active_test=false)')
+@click.option('--json', 'output_json', is_flag=True, default=None, help='Output pure JSON (LLM-friendly)')
 @click.pass_context
-def update(ctx, model: str, ids: str, fields: Tuple[str, ...], no_validate: bool, json_mode: bool, context: tuple):
+def update(ctx, model: str, ids: str, fields: Tuple[str, ...], no_validate: bool, context: tuple, output_json: bool):
     """
     Update existing records with simple field=value syntax.
 
@@ -70,6 +69,9 @@ def update(ctx, model: str, ids: str, fields: Tuple[str, ...], no_validate: bool
         Lists:    category_ids=[1,2,3]
         Null:     parent_id=null or parent_id=false
     """
+    # Determine JSON mode (command flag takes precedence over global)
+    json_mode = output_json if output_json is not None else ctx.obj.json_mode
+
     cli_context = ctx.obj
     client = cli_context.client
     console = cli_context.console

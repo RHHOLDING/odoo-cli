@@ -20,12 +20,11 @@ from odoo_cli.utils.context_parser import parse_context_flags
 @click.argument('ids')
 @click.option('--force', is_flag=True,
               help='Skip confirmation prompt')
-@click.option('--json', 'json_mode', is_flag=True,
-              help='Output result as JSON')
 @click.option('--context', multiple=True,
               help='Context key=value (e.g., --context active_test=false)')
+@click.option('--json', 'output_json', is_flag=True, default=None, help='Output pure JSON (LLM-friendly)')
 @click.pass_context
-def delete(ctx, model: str, ids: str, force: bool, json_mode: bool, context: tuple):
+def delete(ctx, model: str, ids: str, force: bool, context: tuple, output_json: bool):
     """
     Delete records by ID.
 
@@ -61,6 +60,9 @@ def delete(ctx, model: str, ids: str, force: bool, json_mode: bool, context: tup
         - Lists record IDs before deletion
         - Returns count of deleted records
     """
+    # Determine JSON mode (command flag takes precedence over global)
+    json_mode = output_json if output_json is not None else ctx.obj.json_mode
+
     cli_context = ctx.obj
     client = cli_context.client
     console = cli_context.console

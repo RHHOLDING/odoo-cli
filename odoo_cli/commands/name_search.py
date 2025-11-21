@@ -5,7 +5,7 @@ Search records by name command
 import click
 from odoo_cli.client import OdooClient
 from odoo_cli.models.context import CliContext
-from odoo_cli.utils import output_json, output_error, parse_json_arg
+from odoo_cli.utils import output_json as print_json, output_error, parse_json_arg
 from odoo_cli.utils.context_parser import parse_context_flags
 
 
@@ -16,9 +16,9 @@ from odoo_cli.utils.context_parser import parse_context_flags
 @click.option('--operator', type=str, default='ilike', help='Comparison operator (default: ilike)')
 @click.option('--limit', type=int, default=100, help='Maximum results to return')
 @click.option('--context', multiple=True, help='Context key=value (e.g., --context lang=de_DE)')
-@click.option('--json', 'json_mode', is_flag=True, help='Output pure JSON')
+@click.option('--json', 'output_json', is_flag=True, default=None, help='Output pure JSON (LLM-friendly)')
 @click.pass_obj
-def name_search(ctx: CliContext, model: str, name: str, domain: str, operator: str, limit: int, context: tuple, json_mode: bool):
+def name_search(ctx: CliContext, model: str, name: str, domain: str, operator: str, limit: int, context: tuple, output_json: bool):
     """
     Search records by name (fuzzy search)
 
@@ -32,7 +32,7 @@ def name_search(ctx: CliContext, model: str, name: str, domain: str, operator: s
         odoo name-search res.country Germany --operator like
     """
     # Combine local and global json flags
-    json_mode = json_mode or ctx.json_mode
+    json_mode = output_json if output_json is not None else ctx.json_mode
 
     # Parse domain if provided
     parsed_domain = None
@@ -112,7 +112,7 @@ def name_search(ctx: CliContext, model: str, name: str, domain: str, operator: s
         if json_mode:
             # Convert tuples to dict for JSON
             data = [{'id': id, 'name': display_name} for id, display_name in results]
-            output_json({'results': data, 'count': len(data)})
+            print_json({'results': data, 'count': len(data)})
         else:
             if results:
                 ctx.console.print(f'[bold]Search results for "{name}" in {model}:[/bold]\n')

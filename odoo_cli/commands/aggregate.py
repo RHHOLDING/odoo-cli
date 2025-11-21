@@ -40,13 +40,12 @@ def parse_domain_string(domain_str: str) -> List:
               help='Field to group by')
 @click.option('--batch-size', type=int, default=1000,
               help='Number of records per batch (default: 1000)')
-@click.option('--json', 'json_mode', is_flag=True,
-              help='Output result as JSON')
 @click.option('--context', multiple=True,
               help='Context key=value (e.g., --context active_test=false)')
+@click.option('--json', 'output_json', is_flag=True, default=None, help='Output pure JSON (LLM-friendly)')
 @click.pass_context
 def aggregate(ctx, model: str, domain: str, sum_fields: tuple, avg_fields: tuple,
-              count_flag: bool, group_by_field: str, batch_size: int, json_mode: bool, context: tuple):
+              count_flag: bool, group_by_field: str, batch_size: int, context: tuple, output_json: bool):
     """
     Aggregate records by sum, average, or count.
 
@@ -78,6 +77,9 @@ def aggregate(ctx, model: str, domain: str, sum_fields: tuple, avg_fields: tuple
         Non-JSON mode: Rich formatted table
         JSON mode: Structured JSON with results
     """
+    # Determine JSON mode (command flag takes precedence over global)
+    json_mode = output_json if output_json is not None else ctx.obj.json_mode
+
     cli_context = ctx.obj
     client = cli_context.client
     console = cli_context.console

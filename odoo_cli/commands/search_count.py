@@ -5,7 +5,7 @@ Count records matching a domain filter command
 import click
 from odoo_cli.client import OdooClient
 from odoo_cli.models.context import CliContext
-from odoo_cli.utils import output_json, output_error, parse_json_arg
+from odoo_cli.utils import output_json as print_json, output_error, parse_json_arg
 from odoo_cli.utils.context_parser import parse_context_flags
 
 
@@ -13,9 +13,9 @@ from odoo_cli.utils.context_parser import parse_context_flags
 @click.argument('model', type=str)
 @click.argument('domain', type=str)
 @click.option('--context', multiple=True, help='Context key=value (e.g., --context active_test=false)')
-@click.option('--json', 'json_mode', is_flag=True, help='Output pure JSON')
+@click.option('--json', 'output_json', is_flag=True, default=None, help='Output pure JSON (LLM-friendly)')
 @click.pass_obj
-def search_count(ctx: CliContext, model: str, domain: str, context: tuple, json_mode: bool):
+def search_count(ctx: CliContext, model: str, domain: str, context: tuple, output_json: bool):
     """
     Count records matching a domain filter
 
@@ -28,7 +28,7 @@ def search_count(ctx: CliContext, model: str, domain: str, context: tuple, json_
         odoo search-count product.product '[]' --context active_test=false
     """
     # Combine local and global json flags
-    json_mode = json_mode or ctx.json_mode
+    json_mode = output_json if output_json is not None else ctx.json_mode
 
     # Parse domain
     try:
@@ -97,7 +97,7 @@ def search_count(ctx: CliContext, model: str, domain: str, context: tuple, json_
         count = client.search_count(model, parsed_domain, context=parsed_context)
 
         if json_mode:
-            output_json({'count': count, 'model': model})
+            print_json({'count': count, 'model': model})
         else:
             ctx.console.print(f'[bold cyan]{count}[/bold cyan] record(s) found in [bold]{model}[/bold]')
 

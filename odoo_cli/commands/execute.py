@@ -6,7 +6,7 @@ import click
 import sys
 from odoo_cli.client import OdooClient
 from odoo_cli.models.context import CliContext
-from odoo_cli.utils import output_json, output_error, parse_json_arg, format_table
+from odoo_cli.utils import output_json as print_json, output_error, parse_json_arg, format_table
 from odoo_cli.utils.context_parser import parse_context_flags
 
 
@@ -16,8 +16,9 @@ from odoo_cli.utils.context_parser import parse_context_flags
 @click.option('--args', type=str, help='JSON array of positional arguments')
 @click.option('--kwargs', type=str, help='JSON object of keyword arguments')
 @click.option('--context', multiple=True, help='Context key=value (e.g., --context active_test=false)')
+@click.option('--json', 'output_json', is_flag=True, default=None, help='Output pure JSON (LLM-friendly)')
 @click.pass_obj
-def execute(ctx: CliContext, model: str, method: str, args: str, kwargs: str, context: tuple):
+def execute(ctx: CliContext, model: str, method: str, args: str, kwargs: str, context: tuple, output_json: bool):
     """
     Execute arbitrary model method
 
@@ -25,6 +26,9 @@ def execute(ctx: CliContext, model: str, method: str, args: str, kwargs: str, co
         odoo execute ir.module.module button_immediate_upgrade --args '[[("name", "=", "sale")]]'
         odoo execute res.partner search_count --args '[[]]' --json
     """
+    # Determine JSON mode (command flag takes precedence over global)
+    json_mode = output_json if output_json is not None else ctx.json_mode
+
     # Parse JSON arguments
     parsed_args = []
     parsed_kwargs = {}
@@ -46,7 +50,7 @@ def execute(ctx: CliContext, model: str, method: str, args: str, kwargs: str, co
             error_type='data',
             suggestion='Ensure JSON is properly formatted',
             console=ctx.console,
-            json_mode=ctx.json_mode,
+            json_mode=json_mode,
             exit_code=3
         )
 
@@ -61,7 +65,7 @@ def execute(ctx: CliContext, model: str, method: str, args: str, kwargs: str, co
                 error_type='data',
                 suggestion='Context must be in format key=value (e.g., active_test=false)',
                 console=ctx.console,
-                json_mode=ctx.json_mode,
+                json_mode=json_mode,
                 exit_code=3
             )
 
@@ -83,7 +87,7 @@ def execute(ctx: CliContext, model: str, method: str, args: str, kwargs: str, co
             details=str(e),
             suggestion='Check URL and network connectivity',
             console=ctx.console,
-            json_mode=ctx.json_mode,
+            json_mode=json_mode,
             exit_code=1
         )
     except ValueError as e:
@@ -93,7 +97,7 @@ def execute(ctx: CliContext, model: str, method: str, args: str, kwargs: str, co
             details=str(e),
             suggestion='Verify credentials in configuration',
             console=ctx.console,
-            json_mode=ctx.json_mode,
+            json_mode=json_mode,
             exit_code=2
         )
 
@@ -101,8 +105,8 @@ def execute(ctx: CliContext, model: str, method: str, args: str, kwargs: str, co
     try:
         result = client.execute(model, method, *parsed_args, context=parsed_context, **parsed_kwargs)
 
-        if ctx.json_mode:
-            output_json(result)
+        if json_mode:
+            print_json(result)
         else:
             # Format output based on result type
             if isinstance(result, list) and result and isinstance(result[0], dict):
@@ -131,6 +135,6 @@ def execute(ctx: CliContext, model: str, method: str, args: str, kwargs: str, co
             details=error_msg,
             suggestion=suggestion,
             console=ctx.console,
-            json_mode=ctx.json_mode,
+            json_mode=json_mode,
             exit_code=3
         )

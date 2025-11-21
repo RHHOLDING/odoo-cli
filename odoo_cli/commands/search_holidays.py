@@ -5,7 +5,7 @@ Search time-off/holiday records command
 import click
 from odoo_cli.client import OdooClient
 from odoo_cli.models.context import CliContext
-from odoo_cli.utils import output_json, output_error, format_table
+from odoo_cli.utils import output_json as print_json, output_error, format_table
 from odoo_cli.utils.context_parser import parse_context_flags
 
 
@@ -18,8 +18,9 @@ from odoo_cli.utils.context_parser import parse_context_flags
 )
 @click.option('--limit', type=int, default=20, help='Maximum results to return')
 @click.option('--context', multiple=True, help='Context key=value (e.g., --context active_test=false)')
+@click.option('--json', 'output_json', is_flag=True, default=None, help='Output pure JSON (LLM-friendly)')
 @click.pass_obj
-def search_holidays(ctx: CliContext, employee: str, state: str, limit: int, context: tuple):
+def search_holidays(ctx: CliContext, employee: str, state: str, limit: int, context: tuple, output_json: bool):
     """
     Search time-off/holiday records
 
@@ -27,6 +28,9 @@ def search_holidays(ctx: CliContext, employee: str, state: str, limit: int, cont
         odoo search-holidays --employee "John" --state validate
         odoo search-holidays --limit 50 --json
     """
+    # Determine JSON mode (command flag takes precedence over global)
+    json_mode = output_json if output_json is not None else ctx.json_mode
+
     # Parse context
     parsed_context = None
     if context:
@@ -38,7 +42,7 @@ def search_holidays(ctx: CliContext, employee: str, state: str, limit: int, cont
                 error_type='data',
                 suggestion='Context must be in format key=value (e.g., active_test=false)',
                 console=ctx.console,
-                json_mode=ctx.json_mode,
+                json_mode=json_mode,
                 exit_code=3
             )
 
@@ -60,7 +64,7 @@ def search_holidays(ctx: CliContext, employee: str, state: str, limit: int, cont
             details=str(e),
             suggestion='Check URL and network connectivity',
             console=ctx.console,
-            json_mode=ctx.json_mode,
+            json_mode=json_mode,
             exit_code=1
         )
     except ValueError as e:
@@ -70,7 +74,7 @@ def search_holidays(ctx: CliContext, employee: str, state: str, limit: int, cont
             details=str(e),
             suggestion='Verify credentials in configuration',
             console=ctx.console,
-            json_mode=ctx.json_mode,
+            json_mode=json_mode,
             exit_code=2
         )
 
@@ -83,8 +87,8 @@ def search_holidays(ctx: CliContext, employee: str, state: str, limit: int, cont
             context=parsed_context
         )
 
-        if ctx.json_mode:
-            output_json(results)
+        if json_mode:
+            print_json(results)
         else:
             if results:
                 # Format results for display
@@ -129,6 +133,6 @@ def search_holidays(ctx: CliContext, employee: str, state: str, limit: int, cont
             details=str(e),
             suggestion='Check if hr.leave model is available',
             console=ctx.console,
-            json_mode=ctx.json_mode,
+            json_mode=json_mode,
             exit_code=3
         )

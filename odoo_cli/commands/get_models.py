@@ -6,13 +6,14 @@ import click
 import re
 from odoo_cli.client import OdooClient
 from odoo_cli.models.context import CliContext
-from odoo_cli.utils import output_json, output_error, format_table
+from odoo_cli.utils import output_json as print_json, output_error, format_table
 
 
 @click.command('get-models')
 @click.option('--filter', 'filter_pattern', type=str, help='Filter models by name pattern (supports regex)')
+@click.option('--json', 'output_json', is_flag=True, default=None, help='Output pure JSON (LLM-friendly)')
 @click.pass_obj
-def get_models(ctx: CliContext, filter_pattern: str):
+def get_models(ctx: CliContext, filter_pattern: str, output_json: bool):
     """
     List all available Odoo models
 
@@ -21,6 +22,9 @@ def get_models(ctx: CliContext, filter_pattern: str):
         odoo get-models --filter sale
         odoo get-models --filter "^account\\." --json
     """
+    # Determine JSON mode (command flag takes precedence over global)
+    json_mode = output_json if output_json is not None else ctx.json_mode
+
     # Create client
     try:
         client = OdooClient(
@@ -39,7 +43,7 @@ def get_models(ctx: CliContext, filter_pattern: str):
             details=str(e),
             suggestion='Check URL and network connectivity',
             console=ctx.console,
-            json_mode=ctx.json_mode,
+            json_mode=json_mode,
             exit_code=1
         )
     except ValueError as e:
@@ -49,7 +53,7 @@ def get_models(ctx: CliContext, filter_pattern: str):
             details=str(e),
             suggestion='Verify credentials in configuration',
             console=ctx.console,
-            json_mode=ctx.json_mode,
+            json_mode=json_mode,
             exit_code=2
         )
 
@@ -69,12 +73,12 @@ def get_models(ctx: CliContext, filter_pattern: str):
                     details=str(e),
                     suggestion='Check your regex syntax',
                     console=ctx.console,
-                    json_mode=ctx.json_mode,
+                    json_mode=json_mode,
                     exit_code=3
                 )
 
-        if ctx.json_mode:
-            output_json(models)
+        if json_mode:
+            print_json(models)
         else:
             if models:
                 # Format as table with model names
@@ -101,6 +105,6 @@ def get_models(ctx: CliContext, filter_pattern: str):
             error_type='data',
             details=str(e),
             console=ctx.console,
-            json_mode=ctx.json_mode,
+            json_mode=json_mode,
             exit_code=3
         )

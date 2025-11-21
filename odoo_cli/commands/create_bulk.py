@@ -24,12 +24,11 @@ from odoo_cli.utils.context_parser import parse_context_flags
               help='JSON file with array of records to create')
 @click.option('--batch-size', type=int, default=100,
               help='Number of records per batch (default: 100)')
-@click.option('--json', 'json_mode', is_flag=True,
-              help='Output result as JSON')
 @click.option('--context', multiple=True,
               help='Context key=value (e.g., --context active_test=false)')
+@click.option('--json', 'output_json', is_flag=True, default=None, help='Output pure JSON (LLM-friendly)')
 @click.pass_context
-def create_bulk(ctx, model: str, file: str, batch_size: int, json_mode: bool, context: tuple):
+def create_bulk(ctx, model: str, file: str, batch_size: int, context: tuple, output_json: bool):
     """
     Create multiple records from a JSON file.
 
@@ -67,6 +66,9 @@ def create_bulk(ctx, model: str, file: str, batch_size: int, json_mode: bool, co
         - Reduce batch size if hitting timeout errors
         - Larger batches = fewer API calls but higher memory
     """
+    # Determine JSON mode (command flag takes precedence over global)
+    json_mode = output_json if output_json is not None else ctx.obj.json_mode
+
     cli_context = ctx.obj
     client = cli_context.client
     console = cli_context.console

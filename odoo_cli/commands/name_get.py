@@ -5,7 +5,7 @@ Get display names for record IDs command
 import click
 from odoo_cli.client import OdooClient
 from odoo_cli.models.context import CliContext
-from odoo_cli.utils import output_json, output_error
+from odoo_cli.utils import output_json as print_json, output_error
 from odoo_cli.utils.context_parser import parse_context_flags
 
 
@@ -13,9 +13,9 @@ from odoo_cli.utils.context_parser import parse_context_flags
 @click.argument('model', type=str)
 @click.argument('ids', type=str)
 @click.option('--context', multiple=True, help='Context key=value (e.g., --context lang=de_DE)')
-@click.option('--json', 'json_mode', is_flag=True, help='Output pure JSON')
+@click.option('--json', 'output_json', is_flag=True, default=None, help='Output pure JSON (LLM-friendly)')
 @click.pass_obj
-def name_get(ctx: CliContext, model: str, ids: str, context: tuple, json_mode: bool):
+def name_get(ctx: CliContext, model: str, ids: str, context: tuple, output_json: bool):
     """
     Get display names for record IDs
 
@@ -28,7 +28,7 @@ def name_get(ctx: CliContext, model: str, ids: str, context: tuple, json_mode: b
         odoo name-get res.partner 1,2,3 --context lang=de_DE
     """
     # Combine local and global json flags
-    json_mode = json_mode or ctx.json_mode
+    json_mode = output_json if output_json is not None else ctx.json_mode
 
     # Parse IDs
     try:
@@ -99,7 +99,7 @@ def name_get(ctx: CliContext, model: str, ids: str, context: tuple, json_mode: b
         if json_mode:
             # Convert tuples to dict for JSON
             data = [{'id': id, 'name': name} for id, name in results]
-            output_json(data)
+            print_json(data)
         else:
             if results:
                 ctx.console.print(f'[bold]Display names for {model}:[/bold]\n')
