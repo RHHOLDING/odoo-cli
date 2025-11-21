@@ -7,7 +7,7 @@
 
 A high-performance, standalone command-line interface for Odoo using the modern JSON-RPC protocol. This tool provides direct access to Odoo functionality from your terminal, perfect for developers, administrators, and automation scripts.
 
-**v1.4.0 - Quick Wins Bundle: LLM-optimized operations for efficiency!**
+**v1.5.0 - Project Context Layer for LLM Agents: Business metadata access for intelligent recommendations!**
 
 ## Maintainer
 
@@ -20,7 +20,7 @@ Creator and maintainer of odoo-cli
 - 📦 **Batch Operations** - Bulk create/update from JSON files with progress tracking
 - 📊 **Aggregation Helper** - SUM, AVG, COUNT with optional GROUP BY
 - ⚡ **Quick Wins Bundle** - Fast counting, name search, and payload optimization (NEW!)
-- 🚀 **16 Commands** - All CRUD operations, batch processing, aggregation, and more
+- 🚀 **19 Commands** - 16 core commands (CRUD, batch, aggregation) + 3 context commands for LLM agents
 - ⚡ **High-Performance JSON-RPC** - 75% higher throughput than XML-RPC
 - 🎯 **Auto Type Inference** - Automatic detection of int, float, bool, string types
 - ✅ **Field Validation** - Pre-flight checks with helpful error messages
