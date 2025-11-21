@@ -35,6 +35,7 @@ env/
 
 # Project specific
 .env
+.odoo-context.json
 *.log
 .coverage
 htmlcov/
