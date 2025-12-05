@@ -7,7 +7,7 @@
 
 A high-performance, standalone command-line interface for Odoo using the modern JSON-RPC protocol. This tool provides direct access to Odoo functionality from your terminal, perfect for developers, administrators, and automation scripts.
 
-**v1.5.1 - Flexible Context File Paths: Store context files anywhere with multiple access methods!**
+**v1.6.0 - Global Installation: Works from any directory with automatic config discovery!**
 
 ## Maintainer
 
@@ -56,12 +56,20 @@ For security best practices, see [SECURITY.md](SECURITY.md).
 
 ### Installation
 
-#### macOS (Recommended)
+#### Using pipx (Recommended)
 ```bash
-# Using the installer script
+# Install globally (works from any directory!)
+pipx install git+https://github.com/RHHOLDING/odoo-cli.git
+
+# Verify installation
+odoo-cli --version
+```
+
+#### Using the Installer Script
+```bash
 git clone https://github.com/RHHOLDING/odoo-cli.git
 cd odoo-cli
-./install.sh
+./install.sh   # Installs globally with pipx
 ```
 
 #### Using pip
@@ -75,40 +83,67 @@ cd odoo-cli
 pip install -e .
 ```
 
-#### Using pipx (Best for CLI tools)
-```bash
-pipx install git+https://github.com/RHHOLDING/odoo-cli.git
-```
-
 ### Configuration
 
 ⚠️ **Security Warning**: Never commit `.env` files to version control!
 
-#### Option 1: Environment Variables
-```bash
-export ODOO_URL=https://your-instance.odoo.com
-export ODOO_DB=your-database
-export ODOO_USERNAME=admin@example.com
-export ODOO_PASSWORD=your-password
+odoo-cli automatically discovers configuration files (like Git finds `.git`):
+
+```
+Config Discovery Order (highest to lowest priority):
+1. --url, --db, etc. (CLI flags)
+2. ODOO_URL, ODOO_DB, etc. (environment variables)
+3. ODOO_CONFIG=/path/to/.env (explicit config path)
+4. .env in current directory
+5. .env in parent directories (up to 5 levels)
+6. ~/.config/odoo-cli/.env (XDG standard - recommended)
+7. ~/.odoo-cli.env (legacy)
 ```
 
-#### Option 2: .env File
-Create a `.env` file in your project directory:
+#### Quick Setup (Global Config)
+```bash
+# Create global config (works from anywhere!)
+mkdir -p ~/.config/odoo-cli
+cat > ~/.config/odoo-cli/.env << 'EOF'
+ODOO_URL=https://your-instance.odoo.com
+ODOO_DB=your-database
+ODOO_USERNAME=admin@example.com
+ODOO_PASSWORD=your-password
+EOF
+chmod 600 ~/.config/odoo-cli/.env
+
+# Now works from any directory!
+cd /any/directory
+odoo-cli search res.partner '[]' --limit 5
+```
+
+#### Project-Specific Config
+Create a `.env` file in your project root:
 ```bash
 ODOO_URL=https://your-instance.odoo.com
 ODOO_DB=your-database
 ODOO_USERNAME=admin@example.com
 ODOO_PASSWORD=your-password
 
-# Optional
+# Optional: JSON output by default (recommended for LLM automation)
+ODOO_CLI_JSON=1
+
+# Optional settings
 ODOO_TIMEOUT=30
 ODOO_NO_VERIFY_SSL=false
 ```
 
-**Important**: Secure your .env file:
+#### Explicit Config Path
 ```bash
-chmod 600 .env  # Restrict access to owner only
-echo ".env" >> .gitignore  # Never commit to git
+# Point to any config file
+export ODOO_CONFIG=/path/to/my/.env
+odoo-cli search res.partner '[]'
+```
+
+**Important**: Secure your .env files:
+```bash
+chmod 600 ~/.config/odoo-cli/.env  # Restrict access to owner only
+echo ".env" >> .gitignore          # Never commit to git
 ```
 
 ### Basic Usage

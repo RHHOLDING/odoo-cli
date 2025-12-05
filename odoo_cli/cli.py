@@ -15,6 +15,7 @@ from rich.console import Console
 @click.group(invoke_without_command=True)
 @click.option('--json', is_flag=True, help='Output pure JSON to stdout')
 @click.option('--llm-help', is_flag=True, help='Show LLM-optimized help (JSON format)')
+@click.option('--profile', '-p', help='Environment profile (staging, production, dev)')
 @click.option('--config', type=click.Path(exists=True), help='Path to config file')
 @click.option('--url', help='Odoo server URL')
 @click.option('--db', help='Database name')
@@ -23,7 +24,7 @@ from rich.console import Console
 @click.option('--timeout', type=int, help='Connection timeout in seconds')
 @click.option('--no-verify-ssl', is_flag=True, help='Disable SSL certificate verification')
 @click.pass_context
-def cli(ctx, json, llm_help, config, url, db, username, password, timeout, no_verify_ssl):
+def cli(ctx, json, llm_help, profile, config, url, db, username, password, timeout, no_verify_ssl):
     """
     Odoo JSON-RPC CLI Tool
 
@@ -58,6 +59,7 @@ def cli(ctx, json, llm_help, config, url, db, username, password, timeout, no_ve
     try:
         config_dict = load_config(
             config_file=config,
+            profile=profile,
             url=url,
             db=db,
             username=username,
@@ -95,6 +97,7 @@ def cli(ctx, json, llm_help, config, url, db, username, password, timeout, no_ve
 # Import commands to register them
 from odoo_cli.commands import execute, search, read, get_models, get_fields
 from odoo_cli.commands import search_employee, search_holidays, shell, create, update, delete, create_bulk, update_bulk, aggregate, search_count, name_get, name_search, context
+from odoo_cli.commands import profiles
 
 # Register commands
 cli.add_command(create.create)  # User-friendly create command
@@ -115,6 +118,7 @@ cli.add_command(search_employee.search_employee)
 cli.add_command(search_holidays.search_holidays)
 cli.add_command(shell.shell)
 cli.add_command(context.context)  # Project context management
+cli.add_command(profiles.profiles)  # Environment profile management
 
 
 def main():

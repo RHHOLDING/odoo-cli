@@ -76,6 +76,7 @@ class OdooClient:
         password: str,
         timeout: int = 30,
         verify_ssl: bool = True,
+        readonly: bool = False,
     ):
         """
         Initialize the Odoo JSON-RPC client.
@@ -87,6 +88,7 @@ class OdooClient:
             password: Login password
             timeout: Connection timeout in seconds (default: 30)
             verify_ssl: Whether to verify SSL certificates (default: True)
+            readonly: If True, block all write operations (default: False)
         """
         # Ensure URL has a protocol
         if not re.match(r"^https?://", url):
@@ -102,6 +104,7 @@ class OdooClient:
         self.uid: Optional[int] = None
         self.timeout = timeout
         self.verify_ssl = verify_ssl
+        self.readonly = readonly
 
         # Create persistent session with connection pooling
         self.session = requests.Session()
@@ -211,6 +214,9 @@ class OdooClient:
 
         return data.get("result")
 
+    # Methods that modify data - blocked in readonly mode
+    WRITE_METHODS = {'create', 'write', 'unlink', 'copy'}
+
     def _execute(self, model: str, method: str, *args, context: Optional[Dict] = None, **kwargs) -> Any:
         """
         Execute a method on an Odoo model via execute_kw.
@@ -224,8 +230,18 @@ class OdooClient:
 
         Returns:
             Result of the method execution
+
+        Raises:
+            PermissionError: If readonly mode is enabled and method modifies data
         """
         self._ensure_connected()
+
+        # Block write operations in readonly mode
+        if self.readonly and method in self.WRITE_METHODS:
+            raise PermissionError(
+                f"Write operation '{method}' blocked: profile is configured as readonly. "
+                f"Use a non-readonly profile for write operations."
+            )
 
         # Merge context with existing context (command context overrides)
         if context:
@@ -557,7 +573,8 @@ def get_odoo_client(
     username: Optional[str] = None,
     password: Optional[str] = None,
     timeout: Optional[int] = None,
-    verify_ssl: Optional[bool] = None
+    verify_ssl: Optional[bool] = None,
+    readonly: Optional[bool] = None
 ) -> OdooClient:
     """
     Get configured Odoo JSON-RPC client instance.
@@ -569,6 +586,7 @@ def get_odoo_client(
         password: Override password from config
         timeout: Connection timeout in seconds
         verify_ssl: Whether to verify SSL certificates
+        readonly: If True, block all write operations
 
     Returns:
         Configured OdooClient instance
@@ -588,6 +606,7 @@ def get_odoo_client(
     password = password or config.get('password')
     timeout = timeout or config.get('timeout', 30)
     verify_ssl = verify_ssl if verify_ssl is not None else config.get('verify_ssl', True)
+    readonly = readonly if readonly is not None else config.get('readonly', False)
 
     if not all([url, db, username, password]):
         raise ValueError(
@@ -600,7 +619,8 @@ def get_odoo_client(
         username=username,
         password=password,
         timeout=timeout,
-        verify_ssl=verify_ssl
+        verify_ssl=verify_ssl,
+        readonly=readonly
     )
 
     # Connect immediately

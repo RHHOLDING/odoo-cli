@@ -1,17 +1,113 @@
 """
 Configuration loading for Odoo CLI
-Handles .env files, environment variables, and config files
+Handles .env files, YAML profiles, environment variables, and config files
+
+Config Discovery Order (highest to lowest priority):
+1. Command-line arguments (--url, --db, --profile, etc.)
+2. Environment variables (ODOO_URL, ODOO_DB, ODOO_PROFILE, etc.)
+3. ODOO_CONFIG environment variable (explicit config path)
+4. Profile from YAML config file (if --profile or ODOO_PROFILE set)
+5. .env file in current directory
+6. .env file in parent directories (up to 5 levels, like Git)
+7. ~/.config/odoo-cli/.env (XDG standard)
+8. ~/.odoo-cli.env (legacy)
+9. ~/.odoo_cli.env (legacy)
 """
 
 import os
 import json
 from pathlib import Path
-from typing import Dict, Any, Optional
-from dotenv import load_dotenv, find_dotenv
+from typing import Dict, Any, Optional, List
+from dotenv import load_dotenv
+
+# Import ProfileManager (lazy to avoid circular imports)
+_profile_manager = None
+
+
+# Maximum levels to search up for .env files
+MAX_PARENT_SEARCH_LEVELS = 5
+
+
+def find_env_file(start_dir: Optional[Path] = None) -> Optional[Path]:
+    """
+    Find .env file by searching current directory and parent directories.
+    Similar to how Git finds .git directory.
+
+    Args:
+        start_dir: Directory to start searching from (default: current working directory)
+
+    Returns:
+        Path to .env file if found, None otherwise
+    """
+    if start_dir is None:
+        start_dir = Path.cwd()
+
+    current = start_dir.resolve()
+
+    for _ in range(MAX_PARENT_SEARCH_LEVELS + 1):
+        env_file = current / '.env'
+        if env_file.exists():
+            return env_file
+
+        # Also check for .odoo-cli.env in case project uses that naming
+        odoo_env_file = current / '.odoo-cli.env'
+        if odoo_env_file.exists():
+            return odoo_env_file
+
+        parent = current.parent
+        if parent == current:  # Reached root
+            break
+        current = parent
+
+    return None
+
+
+def get_config_search_paths() -> List[Path]:
+    """
+    Get list of config file paths to search, in priority order.
+
+    Returns:
+        List of paths to check for config files
+    """
+    paths = []
+
+    # 1. ODOO_CONFIG environment variable (explicit path)
+    explicit_config = os.getenv('ODOO_CONFIG')
+    if explicit_config:
+        paths.append(Path(explicit_config).expanduser())
+
+    # 2. Current directory .env
+    paths.append(Path.cwd() / '.env')
+
+    # 3. Parent directory search
+    parent_env = find_env_file()
+    if parent_env and parent_env not in paths:
+        paths.append(parent_env)
+
+    # 4. XDG config directory (Linux/Mac standard)
+    xdg_config = os.getenv('XDG_CONFIG_HOME', str(Path.home() / '.config'))
+    paths.append(Path(xdg_config) / 'odoo-cli' / '.env')
+    paths.append(Path(xdg_config) / 'odoo-cli' / 'config.env')
+
+    # 5. Legacy home directory locations
+    paths.append(Path.home() / '.odoo-cli.env')
+    paths.append(Path.home() / '.odoo_cli.env')
+
+    return paths
+
+
+def get_profile_manager():
+    """Get or create ProfileManager instance."""
+    global _profile_manager
+    if _profile_manager is None:
+        from odoo_cli.models.profile import ProfileManager
+        _profile_manager = ProfileManager()
+    return _profile_manager
 
 
 def load_config(
     config_file: Optional[str] = None,
+    profile: Optional[str] = None,
     url: Optional[str] = None,
     db: Optional[str] = None,
     username: Optional[str] = None,
@@ -23,12 +119,17 @@ def load_config(
     Load configuration from multiple sources with priority:
     1. Command-line arguments (highest priority)
     2. Environment variables
-    3. .env file in current directory
-    4. ~/.odoo_cli.env file
-    5. Config file (JSON)
+    3. Profile from YAML config (--profile or ODOO_PROFILE)
+    4. ODOO_CONFIG environment variable (explicit path)
+    5. .env file in current directory
+    6. .env file in parent directories (up to 5 levels)
+    7. ~/.config/odoo-cli/.env (XDG standard)
+    8. ~/.odoo-cli.env or ~/.odoo_cli.env (legacy)
+    9. Config file (JSON) via --config flag
 
     Args:
         config_file: Path to custom config file
+        profile: Profile name to use
         url: Override URL
         db: Override database
         username: Override username
@@ -40,17 +141,30 @@ def load_config(
         Dictionary with configuration values
     """
     config = {}
+    config['_config_source'] = None  # Track where config was loaded from
+    config['_profile'] = None  # Track active profile
 
-    # Load from .env files (lowest priority)
-    # Try current directory first
-    local_env = find_dotenv('.env', usecwd=True)
-    if local_env:
-        load_dotenv(local_env, override=False)
+    # Try to load from profile first (if profile specified or ODOO_PROFILE set)
+    profile_name = profile or os.getenv('ODOO_PROFILE')
+    if profile_name:
+        try:
+            pm = get_profile_manager()
+            profile_config = pm.get_config(profile_name)
+            if profile_config:
+                config.update(profile_config)
+                config['_config_source'] = f"profile:{profile_name}"
+                config['_profile'] = profile_name
+        except Exception:
+            pass  # Fall through to .env loading
 
-    # Try home directory
-    home_env = Path.home() / '.odoo_cli.env'
-    if home_env.exists():
-        load_dotenv(home_env, override=False)
+    # Load from .env files (search multiple locations)
+    env_loaded = False
+    for env_path in get_config_search_paths():
+        if env_path.exists():
+            load_dotenv(env_path, override=False)
+            if not env_loaded and not config.get('_config_source'):
+                config['_config_source'] = str(env_path)
+                env_loaded = True
 
     # Load from custom config file if provided
     if config_file:
@@ -120,8 +234,43 @@ def validate_config(config: Dict[str, Any]) -> None:
     missing = [key for key in required if not config.get(key)]
 
     if missing:
+        # Build helpful error message with search paths
+        search_paths = get_config_search_paths()
+        paths_str = "\n  ".join(str(p) for p in search_paths[:5])
+
         raise ValueError(
-            f"Missing required configuration: {', '.join(missing)}. "
-            f"Please set via environment variables (ODOO_URL, ODOO_DB, ODOO_USERNAME, ODOO_PASSWORD) "
-            f"or create a .env file."
+            f"Missing required configuration: {', '.join(missing)}.\n\n"
+            f"Set via environment variables:\n"
+            f"  ODOO_URL, ODOO_DB, ODOO_USERNAME, ODOO_PASSWORD\n\n"
+            f"Or create a .env file in one of these locations:\n"
+            f"  {paths_str}\n\n"
+            f"Or set ODOO_CONFIG=/path/to/.env"
         )
+
+
+def get_config_info() -> Dict[str, Any]:
+    """
+    Get information about config discovery for debugging and agent-info.
+
+    Returns:
+        Dictionary with config source information
+    """
+    search_paths = get_config_search_paths()
+    found_path = None
+
+    for path in search_paths:
+        if path.exists():
+            found_path = path
+            break
+
+    return {
+        "search_paths": [str(p) for p in search_paths],
+        "found": str(found_path) if found_path else None,
+        "env_vars": {
+            "ODOO_URL": bool(os.getenv('ODOO_URL')),
+            "ODOO_DB": bool(os.getenv('ODOO_DB')),
+            "ODOO_USERNAME": bool(os.getenv('ODOO_USERNAME')),
+            "ODOO_PASSWORD": bool(os.getenv('ODOO_PASSWORD')),
+            "ODOO_CONFIG": os.getenv('ODOO_CONFIG'),
+        }
+    }

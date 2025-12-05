@@ -1,7 +1,8 @@
 #!/bin/bash
 
-# Odoo XML-CLI Installer for macOS
-# Optimized for Mac users who prefer simple installation
+# Odoo CLI Installer
+# Supports macOS and Linux
+# Installs odoo-cli globally with XDG config discovery
 
 set -e  # Exit on error
 
@@ -9,17 +10,29 @@ set -e  # Exit on error
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-echo "🚀 Odoo XML-CLI Installer for macOS"
-echo "===================================="
+echo -e "${BLUE}🚀 Odoo CLI Installer v1.6.0${NC}"
+echo "==============================="
 echo ""
 
-# Check if running on macOS
-if [[ "$OSTYPE" != "darwin"* ]]; then
-    echo -e "${RED}❌ This installer is designed for macOS only${NC}"
+# Check if running on supported OS
+if [[ "$OSTYPE" != "darwin"* ]] && [[ "$OSTYPE" != "linux"* ]]; then
+    echo -e "${RED}❌ This installer supports macOS and Linux only${NC}"
     exit 1
 fi
+
+# Detect OS for platform-specific settings
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    OS_TYPE="macos"
+    SHELL_RC="$HOME/.zshrc"
+else
+    OS_TYPE="linux"
+    SHELL_RC="$HOME/.bashrc"
+fi
+
+echo -e "Detected OS: ${BLUE}$OS_TYPE${NC}"
 
 # Check for Python 3.10+
 check_python() {
@@ -95,15 +108,15 @@ main() {
         fi
     fi
 
-    # 3. Install odoo-xml-cli
+    # 3. Install odoo-cli
     echo ""
-    echo "Installing odoo-xml-cli..."
+    echo "Installing odoo-cli..."
 
     REPO_PATH=$(dirname "$(realpath "$0")")
 
     if [ "$INSTALLER" == "pipx" ]; then
         # Uninstall if exists to ensure clean install
-        pipx uninstall odoo-xml-cli 2>/dev/null || true
+        pipx uninstall odoo-cli 2>/dev/null || true
         # Install from local path for development
         pipx install -e "$REPO_PATH"
     else
@@ -112,62 +125,77 @@ main() {
 
         # Add to PATH if not already there
         if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
-            echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc
-            echo -e "${YELLOW}ℹ️  Added ~/.local/bin to PATH in ~/.zshrc${NC}"
-            echo -e "${YELLOW}   Run 'source ~/.zshrc' to update current session${NC}"
+            echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$SHELL_RC"
+            echo -e "${YELLOW}ℹ️  Added ~/.local/bin to PATH in $SHELL_RC${NC}"
+            echo -e "${YELLOW}   Run 'source $SHELL_RC' to update current session${NC}"
         fi
     fi
 
-    # 4. Create sample .env file if not exists
-    if [ ! -f "$HOME/.odoo_cli.env" ]; then
+    # 4. Create config directory (XDG standard)
+    CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/odoo-cli"
+    CONFIG_FILE="$CONFIG_DIR/.env"
+
+    mkdir -p "$CONFIG_DIR"
+
+    if [ ! -f "$CONFIG_FILE" ]; then
         echo ""
-        echo "Creating sample configuration at ~/.odoo_cli.env"
-        cat > "$HOME/.odoo_cli.env" << 'EOF'
+        echo "Creating sample configuration at $CONFIG_FILE"
+        cat > "$CONFIG_FILE" << 'EOF'
 # Odoo CLI Configuration
-# Copy this file to your project directory as .env
-# Or set these as environment variables
+# This file is automatically discovered by odoo-cli
+#
+# Config Discovery Order:
+# 1. ODOO_CONFIG environment variable (explicit path)
+# 2. .env in current directory
+# 3. .env in parent directories (up to 5 levels)
+# 4. ~/.config/odoo-cli/.env (this file)
+# 5. ~/.odoo-cli.env (legacy)
 
 ODOO_URL=https://your-instance.odoo.com
 ODOO_DB=your-database
 ODOO_USERNAME=admin@example.com
 ODOO_PASSWORD=your-password
 
+# Optional: JSON output by default (recommended for LLM automation)
+# ODOO_CLI_JSON=1
+
 # Optional settings
 # ODOO_TIMEOUT=30
 # ODOO_NO_VERIFY_SSL=false
 EOF
-        chmod 600 "$HOME/.odoo_cli.env"
-        echo -e "${GREEN}✓ Sample config created at ~/.odoo_cli.env${NC}"
-        echo -e "${YELLOW}  ⚠️  Remember to update it with your Odoo credentials${NC}"
+        chmod 600 "$CONFIG_FILE"
+        echo -e "${GREEN}✓ Sample config created at $CONFIG_FILE${NC}"
+        echo -e "${YELLOW}  ⚠️  Update with your Odoo credentials${NC}"
+    else
+        echo -e "${GREEN}✓ Config already exists at $CONFIG_FILE${NC}"
     fi
 
     # 5. Verify installation
     echo ""
     echo "Verifying installation..."
 
-    if command -v odoo &> /dev/null; then
+    if command -v odoo-cli &> /dev/null; then
         echo -e "${GREEN}✅ Installation successful!${NC}"
         echo ""
-        echo "You can now use the odoo command:"
-        echo "  odoo --help              # Show all commands"
-        echo "  odoo get-models          # Test connection"
-        echo "  odoo shell               # Interactive shell"
+        echo -e "${BLUE}Quick Start:${NC}"
+        echo "  odoo-cli --help              # Show all commands"
+        echo "  odoo-cli get-models          # Test connection"
+        echo "  odoo-cli search res.partner '[]' --limit 5"
         echo ""
-        echo "Configuration:"
-        echo "  1. Copy ~/.odoo_cli.env to your project as .env"
-        echo "  2. Update with your Odoo credentials"
-        echo "  3. Set chmod 600 .env for security"
+        echo -e "${BLUE}Configuration:${NC}"
+        echo "  Global config: $CONFIG_FILE"
+        echo "  Project config: .env in your project directory"
+        echo "  Explicit path: export ODOO_CONFIG=/path/to/.env"
         echo ""
-        echo "Or set environment variables:"
-        echo "  export ODOO_URL=https://your-instance.odoo.com"
-        echo "  export ODOO_DB=your-database"
-        echo "  export ODOO_USERNAME=admin@example.com"
-        echo "  export ODOO_PASSWORD=your-password"
+        echo -e "${BLUE}For LLM Agents:${NC}"
+        echo "  odoo-cli works from any directory!"
+        echo "  Config is discovered automatically."
+        echo "  Use --json flag for structured output."
     else
-        echo -e "${RED}❌ Installation may have succeeded but 'odoo' command not found${NC}"
+        echo -e "${RED}❌ Installation may have succeeded but 'odoo-cli' command not found${NC}"
         echo "   You may need to:"
         echo "   1. Restart your terminal"
-        echo "   2. Run: source ~/.zshrc"
+        echo "   2. Run: source $SHELL_RC"
         echo "   3. Check PATH includes ~/.local/bin"
     fi
 }
@@ -176,4 +204,5 @@ EOF
 main
 
 echo ""
-echo "Need help? Check the README or run: odoo --help"
+echo -e "${BLUE}Need help?${NC} Check README or run: odoo-cli --help"
+echo -e "${BLUE}Issues?${NC} https://github.com/RHHOLDING/odoo-cli/issues"

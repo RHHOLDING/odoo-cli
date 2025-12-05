@@ -21,7 +21,7 @@ def get_llm_help() -> Dict[str, Any]:
         Dictionary with recommendations, commands, error patterns, and limits
     """
     return {
-        "cli_version": "1.4.0",
+        "cli_version": "1.6.0",
         "protocol": "JSON-RPC",
         "mode": "llm_help",
         "timestamp": datetime.now().isoformat(),

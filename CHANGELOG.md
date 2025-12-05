@@ -5,6 +5,67 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0] - Environment Profiles & Global Installation
+
+### Added
+- **Environment Profiles** - Quick switching between Odoo environments
+  - YAML-based profile configuration (`~/.config/odoo-cli/config.yaml`)
+  - `--profile` flag for all commands: `odoo-cli --profile production search ...`
+  - `ODOO_PROFILE` environment variable support
+  - Default profile selection (first profile or marked with `default: true`)
+
+- **Profile Management Commands** - Full CRUD for profiles
+  - `profiles list` - Show all profiles with active/default markers
+  - `profiles show <name>` - Display profile details (password masked)
+  - `profiles add <name>` - Create new profile with all connection options
+  - `profiles edit <name>` - Update existing profile fields
+  - `profiles delete <name>` - Remove profile (with confirmation)
+  - `profiles rename <old> <new>` - Rename profile
+  - `profiles set-default <name>` - Set default profile
+  - `profiles test <name>` - Test connectivity
+  - `profiles current` - Show active profile
+
+- **Readonly Mode** - Safe production access
+  - `--readonly` flag when creating profiles: blocks `create`, `write`, `unlink`, `copy`
+  - `--readonly/--no-readonly` for editing existing profiles
+  - Clear error messages when write operations are blocked
+  - Perfect for safely inspecting production data
+
+- **Global Installation** - Works from any directory
+  - XDG Base Directory support (`~/.config/odoo-cli/`)
+  - Parent directory search for `.env` files (like Git finds `.git/`)
+  - `ODOO_CONFIG` environment variable for explicit config path
+  - `pipx install` recommended for global CLI access
+
+### Changed
+- Config discovery searches multiple locations automatically
+- Profile config takes precedence over `.env` files when `--profile` is set
+
+### New Files
+- `odoo_cli/models/profile.py` - Profile dataclass and ProfileManager
+- `odoo_cli/commands/profiles.py` - Profile management CLI commands
+
+### Dependencies
+- Added `pyyaml>=6.0.0` for YAML profile configuration
+
+### Example Profile Configuration
+```yaml
+# ~/.config/odoo-cli/config.yaml
+profiles:
+  staging:
+    url: https://staging.odoo.com
+    db: staging-db
+    username: admin@example.com
+    password: secret
+    default: true
+  production:
+    url: https://production.odoo.com
+    db: prod-db
+    username: admin@example.com
+    password: secret
+    readonly: true  # Safe for inspection
+```
+
 ## [1.5.1] - Flexible Context File Paths (Patch)
 
 ### Added
@@ -227,6 +288,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [Contributing](CONTRIBUTING.md)
 - [Security](SECURITY.md)
 
+[1.6.0]: https://github.com/RHHOLDING/odoo-cli/compare/v1.5.1...v1.6.0
+[1.5.1]: https://github.com/RHHOLDING/odoo-cli/compare/v1.5.0...v1.5.1
+[1.5.0]: https://github.com/RHHOLDING/odoo-cli/compare/v1.4.1...v1.5.0
 [1.4.1]: https://github.com/RHHOLDING/odoo-cli/compare/v1.4.0...v1.4.1
 [1.4.0]: https://github.com/RHHOLDING/odoo-cli/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/RHHOLDING/odoo-cli/compare/v1.2.0...v1.3.0

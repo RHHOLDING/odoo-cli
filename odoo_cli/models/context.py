@@ -28,7 +28,8 @@ class CliContext:
                 username=self.config.get('username'),
                 password=self.config.get('password'),
                 timeout=self.config.get('timeout', 30),
-                verify_ssl=self.config.get('verify_ssl', True)
+                verify_ssl=self.config.get('verify_ssl', True),
+                readonly=self.config.get('readonly', False)
             )
         return self._client
 
