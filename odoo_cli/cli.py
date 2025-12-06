@@ -26,21 +26,29 @@ from rich.console import Console
 @click.pass_context
 def cli(ctx, json, llm_help, profile, config, url, db, username, password, timeout, no_verify_ssl):
     """
-    Odoo JSON-RPC CLI Tool
+    Execute Python code against Odoo.
 
-    A standalone, LLM-optimized command-line interface for Odoo operations.
+    \b
+    PRIMARY USAGE (exec):
+        odoo-cli exec -c "print(client.search_count('res.partner', []))"
+        odoo-cli exec -c "result = client.search_read('res.partner', [], limit=5)" --json
+        odoo-cli exec script.py --json
 
-    Configure via environment variables:
-        ODOO_URL, ODOO_DB, ODOO_USERNAME, ODOO_PASSWORD
-        ODOO_CLI_JSON=1  (Enable JSON output by default for LLMs)
+    \b
+    The 'client' object is pre-authenticated and ready to use:
+        client.search(model, domain)
+        client.search_read(model, domain, fields, limit)
+        client.read(model, ids, fields)
+        client.create(model, values)  # blocked if profile is readonly
+        client.write(model, ids, values)
+        client.unlink(model, ids)
 
-    Or create a .env file in your project directory.
+    \b
+    SETUP:
+        odoo-cli profiles add staging --url https://... --db mydb -u admin -p secret
+        odoo-cli profiles list
 
-    Examples:
-        odoo-cli get-models
-        odoo-cli search res.partner '[]' --limit 10
-        odoo-cli execute res.partner search_count --args '[[]]'
-        odoo-cli shell
+    Helper commands (search, create, read, etc.) available for simple operations.
     """
     # Handle LLM help request (no credentials needed)
     if llm_help:
