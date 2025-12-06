@@ -6,7 +6,7 @@
 
 Execute Python code against Odoo. Built for LLM agents.
 
-**v1.6.2** - Python execution with human-readable summaries
+**v1.6.3** - Command aliases & cleanup
 
 ```bash
 pipx install git+https://github.com/RHHOLDING/odoo-cli.git
