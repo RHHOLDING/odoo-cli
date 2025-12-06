@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.3] - Quick Wins & Cleanup
+
+### Added
+- **Command aliases** - Shorter commands for common operations
+  - `odoo-cli models` → alias for `get-models`
+  - `odoo-cli fields MODEL` → alias for `get-fields`
+- **Human-readable summary** - JSON output now shows summary first
+  - `✓ count=100, total=146,268.87` before JSON
+  - Visible in collapsed terminal output
+
+### Changed
+- **`--llm-help` rewritten** - Focused on `exec` as primary command
+  - Patterns for common operations
+  - Profile documentation
+  - Simplified error reference
+- **Documentation cleanup** - Removed outdated files
+  - Deleted: install.sh, update.sh, uninstall.sh (use `pipx` instead)
+  - Deleted: docs/ folder, CODEX.md, GEMINI.md
+  - Added: AGENTS.md (comprehensive agent guide)
+
+### Installation
+```bash
+pipx install git+https://github.com/RHHOLDING/odoo-cli.git
+pipx install --force ...  # to update
+pipx uninstall odoo-cli   # to remove
+```
+
 ## [1.6.2] - Python Execution Command
 
 ### Added

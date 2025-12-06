@@ -122,7 +122,9 @@ cli.add_command(name_get.name_get)  # Quick win: ID to name conversion
 cli.add_command(name_search.name_search)  # Quick win: fuzzy name search
 cli.add_command(read.read)
 cli.add_command(get_models.get_models)
+cli.add_command(get_models.get_models, name='models')  # Alias: models = get-models
 cli.add_command(get_fields.get_fields)
+cli.add_command(get_fields.get_fields, name='fields')  # Alias: fields = get-fields
 cli.add_command(search_employee.search_employee)
 cli.add_command(search_holidays.search_holidays)
 cli.add_command(shell.shell)
