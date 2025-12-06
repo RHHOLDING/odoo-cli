@@ -18,6 +18,45 @@ from odoo_cli.models.context import CliContext
 from odoo_cli.utils.output import output_json, output_error
 
 
+def _summarize_result(result) -> str:
+    """Generate a brief human-readable summary of the result."""
+    if result is None:
+        return "executed (no result)"
+
+    if isinstance(result, dict):
+        # Try to create a meaningful summary from dict
+        parts = []
+        for key, value in list(result.items())[:4]:  # Max 4 items
+            if isinstance(value, (int, float)):
+                # Format numbers nicely
+                if isinstance(value, float):
+                    parts.append(f"{key}={value:,.2f}")
+                else:
+                    parts.append(f"{key}={value:,}")
+            elif isinstance(value, list):
+                parts.append(f"{key}=[{len(value)} items]")
+            elif isinstance(value, str) and len(value) < 30:
+                parts.append(f"{key}={value!r}")
+        if len(result) > 4:
+            parts.append(f"...+{len(result)-4} more")
+        return ", ".join(parts) if parts else f"dict with {len(result)} keys"
+
+    if isinstance(result, list):
+        return f"{len(result)} records"
+
+    if isinstance(result, (int, float)):
+        if isinstance(result, float):
+            return f"{result:,.2f}"
+        return f"{result:,}"
+
+    if isinstance(result, str):
+        if len(result) > 50:
+            return f"{result[:50]}..."
+        return result
+
+    return str(type(result).__name__)
+
+
 @click.command('exec')
 @click.argument('script', required=False, type=click.Path(exists=True))
 @click.option('-c', '--code', 'inline_code', help='Execute inline Python code')
@@ -138,6 +177,12 @@ def exec_code(ctx: CliContext, script: Optional[str], inline_code: Optional[str]
             if stderr_output.strip():
                 response["stderr"] = stderr_output.strip()
 
+            # Print human-readable summary FIRST (before JSON)
+            summary_result = response.get("result") or response.get("output")
+            summary = _summarize_result(summary_result)
+            click.echo(f"✓ {summary}")
+
+            # JSON output comes after summary
             output_json(response)
         else:
             # Plain output mode
