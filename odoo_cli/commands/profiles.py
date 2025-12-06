@@ -81,6 +81,7 @@ def list_profiles(ctx: Optional[CliContext], json_mode: bool):
             "db": profile.db,
             "default": profile.default,
             "readonly": profile.readonly,
+            "protected": profile.protected,
             "active": name == active,
         })
 
@@ -97,7 +98,8 @@ def list_profiles(ctx: Optional[CliContext], json_mode: bool):
             marker = " [active]" if p["active"] else ""
             default = " (default)" if p["default"] else ""
             readonly = " [readonly]" if p["readonly"] else ""
-            click.echo(f"  {p['name']}{default}{readonly}{marker}")
+            protected = " [protected]" if p["protected"] else ""
+            click.echo(f"  {p['name']}{default}{readonly}{protected}{marker}")
             click.echo(f"    URL: {p['url']}")
             click.echo(f"    DB:  {p['db']}")
             click.echo()
@@ -146,6 +148,7 @@ def show_profile(ctx: Optional[CliContext], profile_name: str, json_mode: bool):
         click.echo(f"  Verify SSL: {profile.verify_ssl}")
         click.echo(f"  Default:    {profile.default}")
         click.echo(f"  Readonly:   {profile.readonly}")
+        click.echo(f"  Protected:  {profile.protected}")
 
 
 @profiles.command("test")
@@ -322,6 +325,7 @@ def add_profile(
 @click.option("--timeout", type=int, help="New connection timeout")
 @click.option("--verify-ssl/--no-verify-ssl", default=None, help="SSL verification")
 @click.option("--readonly/--no-readonly", default=None, help="Block/allow write operations")
+@click.option("--confirm", is_flag=True, help="Confirm dangerous operations (removing readonly)")
 @click.option("--json", "json_mode", is_flag=True, help="Output as JSON")
 @click.pass_obj
 def edit_profile(
@@ -334,6 +338,7 @@ def edit_profile(
     timeout: Optional[int],
     verify_ssl: Optional[bool],
     readonly: Optional[bool],
+    confirm: bool,
     json_mode: bool,
 ):
     """Edit an existing profile.
@@ -344,6 +349,7 @@ def edit_profile(
         odoo-cli profiles edit staging --url https://new-staging.odoo.com
         odoo-cli profiles edit staging --password newpassword
         odoo-cli profiles edit production --readonly
+        odoo-cli profiles edit production --no-readonly --confirm
     """
     if ctx:
         json_mode = json_mode or ctx.json_mode
@@ -358,7 +364,31 @@ def edit_profile(
         timeout=timeout,
         verify_ssl=verify_ssl,
         readonly=readonly,
+        confirmed=confirm,
     )
+
+    # Handle confirmation requirement for removing readonly
+    if result.get("requires_confirmation") and not json_mode:
+        click.echo(f"⚠️  WARNING: {result['error']}")
+        click.echo(f"   {result.get('warning', '')}")
+        click.echo()
+        user_input = click.prompt(f"Type '{profile_name}' to confirm", default="")
+        if user_input == profile_name:
+            # Retry with confirmation
+            result = pm.update_profile(
+                name=profile_name,
+                url=url,
+                db=db,
+                username=username,
+                password=password,
+                timeout=timeout,
+                verify_ssl=verify_ssl,
+                readonly=readonly,
+                confirmed=True,
+            )
+        else:
+            click.echo("Cancelled.")
+            return
 
     if json_mode:
         output_json(result)
@@ -367,6 +397,8 @@ def edit_profile(
             click.echo(f"✓ {result['message']}")
         else:
             click.echo(f"✗ Error: {result['error']}")
+            if result.get("hint"):
+                click.echo(f"   Hint: {result['hint']}")
 
 
 @profiles.command("delete")
@@ -399,9 +431,23 @@ def delete_profile(
             click.echo(f"✗ Error: Profile '{profile_name}' not found")
         return
 
+    profile = pm.profiles[profile_name]
+
+    # Check if profile is protected first
+    if profile.protected:
+        if json_mode:
+            output_json({
+                "success": False,
+                "error": f"Profile '{profile_name}' is protected and cannot be deleted via CLI",
+                "hint": "Edit ~/.config/odoo-cli/config.yaml directly to delete protected profiles",
+            })
+        else:
+            click.echo(f"✗ Error: Profile '{profile_name}' is protected and cannot be deleted via CLI")
+            click.echo(f"   Hint: Edit ~/.config/odoo-cli/config.yaml directly to delete protected profiles")
+        return
+
     # Confirm deletion unless forced
     if not force and not json_mode:
-        profile = pm.profiles[profile_name]
         click.echo(f"Profile: {profile_name}")
         click.echo(f"  URL: {profile.url}")
         click.echo(f"  DB:  {profile.db}")

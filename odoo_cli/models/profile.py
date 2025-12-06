@@ -25,6 +25,7 @@ class Profile:
     verify_ssl: bool = True
     default: bool = False
     readonly: bool = False  # If True, write operations are blocked
+    protected: bool = False  # If True, profile can't be modified via CLI
     context: Optional[Dict[str, Any]] = None
 
     def to_config(self) -> Dict[str, Any]:
@@ -52,6 +53,7 @@ class Profile:
             "verify_ssl": self.verify_ssl,
             "default": self.default,
             "readonly": self.readonly,
+            "protected": self.protected,
         }
 
 
@@ -126,6 +128,7 @@ class ProfileManager:
                     verify_ssl=profile_data.get("verify_ssl", True),
                     default=profile_data.get("default", False),
                     readonly=profile_data.get("readonly", False),
+                    protected=profile_data.get("protected", False),
                     context=profile_data.get("context"),
                 )
 
@@ -296,6 +299,8 @@ class ProfileManager:
                 profiles_data[name]["default"] = True
             if profile.readonly:
                 profiles_data[name]["readonly"] = True
+            if profile.protected:
+                profiles_data[name]["protected"] = True
             if profile.context:
                 profiles_data[name]["context"] = profile.context
 
@@ -356,21 +361,40 @@ class ProfileManager:
         self._save_profiles()
         return {"success": True, "profile": name, "message": f"Profile '{name}' created"}
 
-    def update_profile(self, name: str, **kwargs) -> Dict[str, Any]:
+    def update_profile(self, name: str, confirmed: bool = False, **kwargs) -> Dict[str, Any]:
         """
         Update an existing profile.
 
         Args:
             name: Profile name
-            **kwargs: Fields to update (url, db, username, password, timeout, verify_ssl)
+            confirmed: If True, bypass readonly removal confirmation
+            **kwargs: Fields to update (url, db, username, password, timeout, verify_ssl, readonly)
 
         Returns:
-            Result dictionary
+            Result dictionary with possible 'requires_confirmation' flag
         """
         if name not in self.profiles:
             return {"success": False, "error": f"Profile '{name}' not found"}
 
         profile = self.profiles[name]
+
+        # Check if profile is protected
+        if profile.protected:
+            return {
+                "success": False,
+                "error": f"Profile '{name}' is protected and cannot be modified via CLI",
+                "hint": "Edit ~/.config/odoo-cli/config.yaml directly to modify protected profiles",
+            }
+
+        # Check if trying to remove readonly protection - requires confirmation
+        if "readonly" in kwargs and kwargs["readonly"] is False and profile.readonly:
+            if not confirmed:
+                return {
+                    "success": False,
+                    "requires_confirmation": True,
+                    "error": f"Removing readonly from '{name}' allows write operations",
+                    "warning": "This will allow create, write, unlink, and copy operations on this profile",
+                }
 
         # Update fields
         if "url" in kwargs and kwargs["url"]:
@@ -404,6 +428,16 @@ class ProfileManager:
         if name not in self.profiles:
             return {"success": False, "error": f"Profile '{name}' not found"}
 
+        profile = self.profiles[name]
+
+        # Check if profile is protected
+        if profile.protected:
+            return {
+                "success": False,
+                "error": f"Profile '{name}' is protected and cannot be deleted via CLI",
+                "hint": "Edit ~/.config/odoo-cli/config.yaml directly to delete protected profiles",
+            }
+
         del self.profiles[name]
         self._save_profiles()
         return {"success": True, "profile": name, "message": f"Profile '{name}' deleted"}
@@ -426,6 +460,15 @@ class ProfileManager:
             return {"success": False, "error": f"Profile '{new_name}' already exists"}
 
         profile = self.profiles[old_name]
+
+        # Check if profile is protected
+        if profile.protected:
+            return {
+                "success": False,
+                "error": f"Profile '{old_name}' is protected and cannot be renamed via CLI",
+                "hint": "Edit ~/.config/odoo-cli/config.yaml directly to rename protected profiles",
+            }
+
         profile.name = new_name
         self.profiles[new_name] = profile
         del self.profiles[old_name]

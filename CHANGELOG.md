@@ -5,6 +5,43 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.1] - Profile Protection & Safety Confirmations
+
+### Added
+- **Protected Profiles** - Prevent accidental modifications to critical profiles
+  - `protected: true` in profile config makes it unmodifiable via CLI
+  - Protected profiles cannot be edited, deleted, or renamed via CLI
+  - Must edit `~/.config/odoo-cli/config.yaml` directly to change protected profiles
+  - Hint message guides users to manual editing when blocked
+
+- **Readonly Removal Confirmation** - Extra safety when enabling write access
+  - Removing `readonly` from a profile requires explicit confirmation
+  - Interactive prompt: "Type 'profile-name' to confirm"
+  - `--confirm` flag for non-interactive/scripted usage
+  - JSON mode returns `requires_confirmation: true` for automation
+
+### Changed
+- `profiles list` now shows `[protected]` marker
+- `profiles show` displays protected status
+- All profile modification commands check protected status first
+
+### Safety
+- Double protection for production profiles: `readonly` + `protected`
+- Agents cannot accidentally modify critical profiles without explicit action
+- Clear error messages with hints for manual configuration
+
+### Example Protected Production Profile
+```yaml
+profiles:
+  production:
+    url: https://production.odoo.com
+    db: prod-db
+    username: admin@example.com
+    password: secret
+    readonly: true    # Blocks write operations
+    protected: true   # Blocks CLI modifications
+```
+
 ## [1.6.0] - Environment Profiles & Global Installation
 
 ### Added
@@ -288,6 +325,7 @@ profiles:
 - [Contributing](CONTRIBUTING.md)
 - [Security](SECURITY.md)
 
+[1.6.1]: https://github.com/RHHOLDING/odoo-cli/compare/v1.6.0...v1.6.1
 [1.6.0]: https://github.com/RHHOLDING/odoo-cli/compare/v1.5.1...v1.6.0
 [1.5.1]: https://github.com/RHHOLDING/odoo-cli/compare/v1.5.0...v1.5.1
 [1.5.0]: https://github.com/RHHOLDING/odoo-cli/compare/v1.4.1...v1.5.0
