@@ -97,9 +97,10 @@ def cli(ctx, json, llm_help, profile, config, url, db, username, password, timeo
 # Import commands to register them
 from odoo_cli.commands import execute, search, read, get_models, get_fields
 from odoo_cli.commands import search_employee, search_holidays, shell, create, update, delete, create_bulk, update_bulk, aggregate, search_count, name_get, name_search, context
-from odoo_cli.commands import profiles
+from odoo_cli.commands import profiles, exec_code
 
 # Register commands
+cli.add_command(exec_code.exec_code)  # PRIMARY: Execute Python code
 cli.add_command(create.create)  # User-friendly create command
 cli.add_command(update.update)  # User-friendly update command
 cli.add_command(delete.delete)  # User-friendly delete command

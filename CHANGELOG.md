@@ -5,6 +5,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.2] - Python Execution Command
+
+### Added
+- **`exec` command** - Execute Python code with pre-authenticated Odoo client
+  - Inline code: `odoo-cli exec -c "print(client.search_count('res.partner', []))"`
+  - Script files: `odoo-cli exec script.py --json`
+  - Pre-loaded `client`, `json`, `datetime`, `pprint` in namespace
+  - Set `result` variable for structured JSON output
+  - Captures stdout/stderr for complete output
+
+### Changed
+- **New primary interface** - `exec` is now the recommended way for LLM agents
+- README rewritten to focus on Python execution
+- Helper commands (search, create, etc.) remain as fallback
+
+### Philosophy
+- LLM agents excel at writing code
+- One command (`exec`) replaces learning 20+ commands
+- Agent writes logic, CLI handles authentication
+- Complex calculations return ready-to-use results
+
+### Example
+```python
+# avg_price.py
+products = client.search_read('product.product', [['sale_ok', '=', True]], ['list_price'])
+avg = sum(p['list_price'] for p in products) / len(products)
+result = {"average_price": round(avg, 2), "count": len(products)}
+```
+```bash
+odoo-cli exec avg_price.py --json
+# {"success": true, "result": {"average_price": 149.99, "count": 234}}
+```
+
 ## [1.6.1] - Profile Protection & Safety Confirmations
 
 ### Added
@@ -325,6 +358,7 @@ profiles:
 - [Contributing](CONTRIBUTING.md)
 - [Security](SECURITY.md)
 
+[1.6.2]: https://github.com/RHHOLDING/odoo-cli/compare/v1.6.1...v1.6.2
 [1.6.1]: https://github.com/RHHOLDING/odoo-cli/compare/v1.6.0...v1.6.1
 [1.6.0]: https://github.com/RHHOLDING/odoo-cli/compare/v1.5.1...v1.6.0
 [1.5.1]: https://github.com/RHHOLDING/odoo-cli/compare/v1.5.0...v1.5.1

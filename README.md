@@ -4,59 +4,103 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![GitHub release](https://img.shields.io/github/v/release/RHHOLDING/odoo-cli)](https://github.com/RHHOLDING/odoo-cli/releases)
 
-Fast, LLM-friendly command-line interface for Odoo.
+Execute Python code against Odoo. Built for LLM agents.
 
-**v1.6.1** - Profile protection & safety confirmations
+**v1.6.2** - Python execution command
 
 ```bash
 pipx install git+https://github.com/RHHOLDING/odoo-cli.git
 ```
 
-## Why this tool?
+## The Idea
 
-| Feature | Benefit |
-|---------|---------|
-| **JSON-RPC** | 75% faster than XML-RPC |
-| **Simple syntax** | `--fields name="Test"` statt JSON |
-| **Profile switching** | `--profile staging` / `--profile production` |
-| **Readonly mode** | Safe production inspection |
-| **LLM-optimized** | `--json` output for AI agents |
+LLM agents are great at writing code. This tool lets them execute it against Odoo:
+
+```bash
+odoo-cli exec -c "
+partners = client.search_read('res.partner', [['is_company', '=', True]], ['name'], limit=5)
+result = {'companies': [p['name'] for p in partners]}
+" --json
+```
+
+```json
+{"success": true, "result": {"companies": ["ACME Corp", "Globex", "Initech"]}}
+```
 
 ## Quick Start
 
 ```bash
-# 1. Create profile
+# 1. Setup profile
 odoo-cli profiles add staging \
   --url https://your-instance.odoo.com \
   --db your-database \
   --username admin@example.com \
   --password secret
 
-# 2. Use it
-odoo-cli search res.partner '[]' --limit 5
-odoo-cli create res.partner -f "name=Test" -f "email=test@example.com"
-odoo-cli read res.partner 123
+# 2. Execute code
+odoo-cli exec -c "print(client.search_count('res.partner', []))"
 ```
 
-## Commands
+## Python Execution
 
-```
-search          Search records
-read            Read records by ID
-create          Create record with field=value syntax
-update          Update records
-delete          Delete records
-execute         Call any Odoo method
-get-models      List available models
-get-fields      Show model fields
-profiles        Manage environment profiles
+The `exec` command provides a pre-authenticated `client` object:
+
+```python
+# Available in your code:
+client      # Authenticated OdooClient
+json        # JSON module
+datetime    # datetime, date, timedelta
+pprint      # Pretty printer
+
+# Set 'result' for structured JSON output
+result = {"key": "value"}
 ```
 
-Full command reference: `odoo-cli --help` or `odoo-cli <command> --help`
+### Examples
+
+```bash
+# Inline code
+odoo-cli exec -c "print(client.search_count('res.partner', []))"
+
+# Script file
+odoo-cli exec script.py --json
+
+# Complex query with result
+odoo-cli exec -c "
+invoices = client.search_read('account.move', [['state', '=', 'posted']], ['amount_total'], limit=100)
+result = {'average': sum(i['amount_total'] for i in invoices) / len(invoices)}
+" --json
+```
+
+### Example Script
+
+```python
+# avg_sales.py - Calculate average sales order value
+orders = client.search_read(
+    'sale.order',
+    [['state', 'in', ['sale', 'done']]],
+    ['name', 'amount_total'],
+    limit=1000
+)
+
+if orders:
+    avg = sum(o['amount_total'] for o in orders) / len(orders)
+    result = {
+        "order_count": len(orders),
+        "average_value": round(avg, 2),
+        "total_value": round(sum(o['amount_total'] for o in orders), 2)
+    }
+else:
+    result = {"order_count": 0}
+```
+
+```bash
+odoo-cli exec avg_sales.py --json
+```
 
 ## Profiles
 
-Switch between environments without editing config:
+Switch between environments:
 
 ```yaml
 # ~/.config/odoo-cli/config.yaml
@@ -77,33 +121,27 @@ profiles:
 ```
 
 ```bash
-odoo-cli --profile production search res.partner '[]'  # Safe read
-odoo-cli --profile staging create res.partner -f "name=Test"  # Write allowed
+odoo-cli --profile production exec -c "print(client.search_count('res.partner', []))"
 ```
 
-## For LLM Agents
+## Helper Commands
 
-```bash
-# JSON output for parsing
-odoo-cli search res.partner '[]' --json
+For simple operations without writing code:
 
-# Or set once for all commands
-export ODOO_CLI_JSON=1
-
-# Structured errors
-{
-  "success": false,
-  "error": "Field 'nam' not found",
-  "error_type": "field_validation",
-  "suggestion": "Did you mean: name?"
-}
+```
+exec            Execute Python code (PRIMARY)
+search          Search records
+read            Read by ID
+create          Create record
+update          Update records
+delete          Delete records
+profiles        Manage profiles
 ```
 
 ## Links
 
 - [Releases](https://github.com/RHHOLDING/odoo-cli/releases)
 - [Changelog](CHANGELOG.md)
-- [License](LICENSE) (MIT)
 
 ---
 
