@@ -15,6 +15,7 @@ class CliContext:
     config: Dict[str, Any]
     json_mode: bool
     console: Console
+    force_mode: bool = False  # Global --force flag to override readonly
     _client: Optional[OdooClient] = None
 
     @property
@@ -31,6 +32,9 @@ class CliContext:
                 verify_ssl=self.config.get('verify_ssl', True),
                 readonly=self.config.get('readonly', False)
             )
+            # Apply global force mode if set
+            if self.force_mode:
+                self._client._force_write = True
         return self._client
 
     def output(self, result: 'CommandResult') -> None:

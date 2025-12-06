@@ -15,6 +15,7 @@ from rich.console import Console
 @click.group(invoke_without_command=True)
 @click.option('--json', is_flag=True, help='Output pure JSON to stdout')
 @click.option('--llm-help', is_flag=True, help='Show LLM-optimized help (JSON format)')
+@click.option('--force', is_flag=True, help='Override readonly profile protection for write operations')
 @click.option('--profile', '-p', help='Environment profile (staging, production, dev)')
 @click.option('--config', type=click.Path(exists=True), help='Path to config file')
 @click.option('--url', help='Odoo server URL')
@@ -24,7 +25,7 @@ from rich.console import Console
 @click.option('--timeout', type=int, help='Connection timeout in seconds')
 @click.option('--no-verify-ssl', is_flag=True, help='Disable SSL certificate verification')
 @click.pass_context
-def cli(ctx, json, llm_help, profile, config, url, db, username, password, timeout, no_verify_ssl):
+def cli(ctx, json, llm_help, force, profile, config, url, db, username, password, timeout, no_verify_ssl):
     """
     Execute Python code against Odoo.
 
@@ -94,7 +95,8 @@ def cli(ctx, json, llm_help, profile, config, url, db, username, password, timeo
     ctx.obj = CliContext(
         config=config_dict,
         json_mode=json_mode,
-        console=console
+        console=console,
+        force_mode=force
     )
 
     # If no command specified, show help

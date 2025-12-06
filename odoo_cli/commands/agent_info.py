@@ -110,18 +110,19 @@ def agent_info(ctx, output_json: bool):
         },
         "important_flags": {
             "--json": "Always use for structured output (LLM-friendly)",
-            "--force": "Override readonly profile protection for writes",
+            "--force": "GLOBAL flag - override readonly profile protection (place before command)",
             "--profile NAME": "Use specific connection profile",
             "--llm-help": "Full command reference as JSON"
         },
         "readonly_profile_note": (
-            f"Current profile is {'READONLY - use --force flag to write' if profile_info['readonly'] else 'writable'}"
+            f"Current profile is {'READONLY - use odoo-cli --force <command> to write' if profile_info['readonly'] else 'writable'}"
         ),
+        "force_usage_example": "odoo-cli --force update res.partner 1 -f name=\"Test\" --json",
         "next_steps": [
             "Run 'odoo-cli get-models --json' to see available models",
             "Run 'odoo-cli context show --json' for project business context",
             "Use --json flag on all commands for structured output",
-            "Use --force flag to write on readonly profiles"
+            "Use 'odoo-cli --force <command>' to write on readonly profiles"
         ]
     }
 

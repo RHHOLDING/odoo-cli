@@ -12,7 +12,7 @@ from typing import Dict, Any
 def get_llm_help() -> Dict[str, Any]:
     """Generate LLM-optimized help as JSON."""
     return {
-        "cli_version": "1.7.0",
+        "cli_version": "1.7.1",
         "protocol": "JSON-RPC",
         "timestamp": datetime.now().isoformat(),
 
@@ -115,7 +115,7 @@ result = {'count': len(orders), 'total': sum(o['amount_total'] for o in orders)}
         "errors": {
             "readonly_blocked": {
                 "message": "Write operation blocked: profile is readonly",
-                "solution": "Use --force flag to override, or use non-readonly profile (dev/staging)"
+                "solution": "Use global --force flag: odoo-cli --force <command>, or use non-readonly profile"
             },
             "invalid_domain": {
                 "message": "unhashable type: 'list'",
@@ -140,8 +140,9 @@ result = {'count': len(orders), 'total': sum(o['amount_total'] for o in orders)}
             "domain_operators": ["=", "!=", "<", ">", "<=", ">=", "ilike", "in", "not in"],
             "domain_format": "[['field', 'operator', 'value']]",
             "json_output": "Always use --json for structured output",
-            "profile_flag": "--profile NAME before exec",
-            "force_write": "Use --force to override readonly profile protection",
+            "profile_flag": "--profile NAME before command",
+            "force_write": "Use 'odoo-cli --force <command>' to override readonly (GLOBAL flag)",
+            "force_example": "odoo-cli --force update res.partner 1 -f name=\"Test\" --json",
             "agent_bootstrap": "Run 'odoo-cli agent-info' for quick tool orientation"
         },
 
