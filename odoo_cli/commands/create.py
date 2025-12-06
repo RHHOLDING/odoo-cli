@@ -28,9 +28,10 @@ from odoo_cli.utils.context_parser import parse_context_flags
     multiple=True,
     help='Context key=value (e.g., --context active_test=false)'
 )
+@click.option('--force', is_flag=True, help='Override readonly profile protection')
 @click.option('--json', 'output_json', is_flag=True, default=None, help='Output pure JSON (LLM-friendly)')
 @click.pass_context
-def create(ctx, model: str, fields: Tuple[str, ...], no_validate: bool, context: tuple, output_json: bool):
+def create(ctx, model: str, fields: Tuple[str, ...], no_validate: bool, context: tuple, force: bool, output_json: bool):
     """
     Create new record with simple field=value syntax.
 
@@ -141,6 +142,9 @@ def create(ctx, model: str, fields: Tuple[str, ...], no_validate: bool, context:
 
         # Create record
         try:
+            # Enable force write if --force flag is used
+            if force:
+                client._force_write = True
             record_id = client.execute(model, 'create', field_dict, context=parsed_context)
         except Exception as e:
             if json_mode:

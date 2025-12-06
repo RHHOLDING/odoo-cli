@@ -26,9 +26,10 @@ from odoo_cli.utils.context_parser import parse_context_flags
               help='Number of records per batch (default: 100)')
 @click.option('--context', multiple=True,
               help='Context key=value (e.g., --context active_test=false)')
+@click.option('--force', is_flag=True, help='Override readonly profile protection')
 @click.option('--json', 'output_json', is_flag=True, default=None, help='Output pure JSON (LLM-friendly)')
 @click.pass_context
-def create_bulk(ctx, model: str, file: str, batch_size: int, context: tuple, output_json: bool):
+def create_bulk(ctx, model: str, file: str, batch_size: int, context: tuple, force: bool, output_json: bool):
     """
     Create multiple records from a JSON file.
 
@@ -72,6 +73,10 @@ def create_bulk(ctx, model: str, file: str, batch_size: int, context: tuple, out
     cli_context = ctx.obj
     client = cli_context.client
     console = cli_context.console
+
+    # Enable force write if --force flag is used
+    if force:
+        client._force_write = True
 
     # Parse context
     parsed_context = None

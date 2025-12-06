@@ -27,9 +27,10 @@ from odoo_cli.utils.context_parser import parse_context_flags
               help='Skip field validation (faster but less safe)')
 @click.option('--context', multiple=True,
               help='Context key=value (e.g., --context active_test=false)')
+@click.option('--force', is_flag=True, help='Override readonly profile protection')
 @click.option('--json', 'output_json', is_flag=True, default=None, help='Output pure JSON (LLM-friendly)')
 @click.pass_context
-def update(ctx, model: str, ids: str, fields: Tuple[str, ...], no_validate: bool, context: tuple, output_json: bool):
+def update(ctx, model: str, ids: str, fields: Tuple[str, ...], no_validate: bool, context: tuple, force: bool, output_json: bool):
     """
     Update existing records with simple field=value syntax.
 
@@ -154,6 +155,9 @@ def update(ctx, model: str, ids: str, fields: Tuple[str, ...], no_validate: bool
 
         # Update records using Odoo's write method
         try:
+            # Enable force write if --force flag is used
+            if force:
+                client._force_write = True
             result = client.execute(model, 'write', record_ids, field_dict, context=parsed_context)
         except Exception as e:
             error_msg = str(e)

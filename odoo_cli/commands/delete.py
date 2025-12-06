@@ -19,7 +19,7 @@ from odoo_cli.utils.context_parser import parse_context_flags
 @click.argument('model')
 @click.argument('ids')
 @click.option('--force', is_flag=True,
-              help='Skip confirmation prompt')
+              help='Skip confirmation prompt and override readonly protection')
 @click.option('--context', multiple=True,
               help='Context key=value (e.g., --context active_test=false)')
 @click.option('--json', 'output_json', is_flag=True, default=None, help='Output pure JSON (LLM-friendly)')
@@ -119,6 +119,9 @@ def delete(ctx, model: str, ids: str, force: bool, context: tuple, output_json: 
 
         # Delete records using Odoo's unlink method
         try:
+            # Enable force write if --force flag is used
+            if force:
+                client._force_write = True
             result = client.execute(model, 'unlink', record_ids, context=parsed_context)
         except Exception as e:
             error_msg = str(e)

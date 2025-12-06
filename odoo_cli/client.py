@@ -105,6 +105,7 @@ class OdooClient:
         self.timeout = timeout
         self.verify_ssl = verify_ssl
         self.readonly = readonly
+        self._force_write = False  # Temporary override for --force flag
 
         # Create persistent session with connection pooling
         self.session = requests.Session()
@@ -236,11 +237,11 @@ class OdooClient:
         """
         self._ensure_connected()
 
-        # Block write operations in readonly mode
-        if self.readonly and method in self.WRITE_METHODS:
+        # Block write operations in readonly mode (unless --force is used)
+        if self.readonly and method in self.WRITE_METHODS and not self._force_write:
             raise PermissionError(
                 f"Write operation '{method}' blocked: profile is configured as readonly. "
-                f"Use a non-readonly profile for write operations."
+                f"Use --force to override or use a non-readonly profile."
             )
 
         # Merge context with existing context (command context overrides)

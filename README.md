@@ -6,7 +6,7 @@
 
 Execute Python code against Odoo. Built for LLM agents.
 
-**v1.6.3** - Command aliases & cleanup
+**v1.7.0** - Agent Experience: `agent-info` command + `--force` for readonly profiles
 
 ```bash
 pipx install git+https://github.com/RHHOLDING/odoo-cli.git
@@ -112,7 +112,26 @@ profiles:
 
 ```bash
 odoo-cli --profile production exec -c "print(client.search_count('res.partner', []))"
+
+# Override readonly protection with --force
+odoo-cli --profile production update res.partner 123 -f "name=Test" --force
 ```
+
+## For LLM Agents
+
+```bash
+# Quick tool orientation
+odoo-cli agent-info
+
+# LLM-optimized help (full JSON reference)
+odoo-cli --llm-help
+```
+
+The `agent-info` command provides structured JSON with:
+- Connection status and active profile
+- Available commands grouped by capability (read/write/meta)
+- Quick-start examples
+- Important flags (`--json`, `--force`, `--profile`)
 
 ## Commands
 
@@ -120,9 +139,10 @@ odoo-cli --profile production exec -c "print(client.search_count('res.partner', 
 exec            Execute Python code (PRIMARY)
 search          Search records
 read            Read by ID
-create/update   Modify records
-delete          Delete records
+create/update   Modify records (use --force for readonly profiles)
+delete          Delete records (use --force for readonly profiles)
 profiles        Manage environments
+agent-info      Quick orientation for LLM agents
 ```
 
 ---
