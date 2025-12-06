@@ -6,7 +6,7 @@
 
 Execute Python code against Odoo. Built for LLM agents.
 
-**v1.6.2** - Python execution command
+**v1.6.2** - Python execution with human-readable summaries
 
 ```bash
 pipx install git+https://github.com/RHHOLDING/odoo-cli.git
@@ -14,18 +14,21 @@ pipx install git+https://github.com/RHHOLDING/odoo-cli.git
 
 ## The Idea
 
-LLM agents are great at writing code. This tool lets them execute it against Odoo:
+LLM agents write Python, this tool executes it against Odoo:
 
 ```bash
 odoo-cli exec -c "
-partners = client.search_read('res.partner', [['is_company', '=', True]], ['name'], limit=5)
-result = {'companies': [p['name'] for p in partners]}
+invoices = client.search_read('account.move', [['state', '=', 'posted']], ['amount_total'], limit=100)
+result = {'count': len(invoices), 'total': sum(i['amount_total'] for i in invoices)}
 " --json
 ```
 
-```json
-{"success": true, "result": {"companies": ["ACME Corp", "Globex", "Initech"]}}
 ```
+✓ count=100, total=146,268.87
+{"success": true, "result": {"count": 100, "total": 146268.87}}
+```
+
+Human-readable summary first, full JSON below.
 
 ## Quick Start
 
@@ -46,61 +49,48 @@ odoo-cli exec -c "print(client.search_count('res.partner', []))"
 The `exec` command provides a pre-authenticated `client` object:
 
 ```python
-# Available in your code:
 client      # Authenticated OdooClient
 json        # JSON module
 datetime    # datetime, date, timedelta
 pprint      # Pretty printer
 
-# Set 'result' for structured JSON output
+# Set 'result' for structured output
 result = {"key": "value"}
 ```
 
 ### Examples
 
 ```bash
-# Inline code
-odoo-cli exec -c "print(client.search_count('res.partner', []))"
+# Count records
+odoo-cli exec -c "result = client.search_count('res.partner', [])" --json
+# ✓ 98,559
 
-# Script file
-odoo-cli exec script.py --json
-
-# Complex query with result
+# Top customers by revenue
 odoo-cli exec -c "
-invoices = client.search_read('account.move', [['state', '=', 'posted']], ['amount_total'], limit=100)
-result = {'average': sum(i['amount_total'] for i in invoices) / len(invoices)}
+sales = client.search_read('sale.order', [['state', '=', 'sale']], ['partner_id', 'amount_total'])
+by_partner = {}
+for s in sales:
+    name = s['partner_id'][1]
+    by_partner[name] = by_partner.get(name, 0) + s['amount_total']
+result = dict(sorted(by_partner.items(), key=lambda x: -x[1])[:5])
 " --json
-```
+# ✓ ACME Corp=480,317.58, Globex=69,562.24, Initech=19,420.65, ...+2 more
 
-### Example Script
-
-```python
-# avg_sales.py - Calculate average sales order value
-orders = client.search_read(
-    'sale.order',
-    [['state', 'in', ['sale', 'done']]],
-    ['name', 'amount_total'],
-    limit=1000
-)
-
-if orders:
-    avg = sum(o['amount_total'] for o in orders) / len(orders)
-    result = {
-        "order_count": len(orders),
-        "average_value": round(avg, 2),
-        "total_value": round(sum(o['amount_total'] for o in orders), 2)
-    }
-else:
-    result = {"order_count": 0}
-```
-
-```bash
-odoo-cli exec avg_sales.py --json
+# Overdue invoices
+odoo-cli exec -c "
+from datetime import date, timedelta
+cutoff = (date.today() - timedelta(days=30)).isoformat()
+overdue = client.search_read('account.move', [
+    ['move_type', '=', 'out_invoice'],
+    ['payment_state', '!=', 'paid'],
+    ['invoice_date', '<', cutoff]
+], ['amount_residual'])
+result = {'overdue_count': len(overdue), 'total': sum(i['amount_residual'] for i in overdue)}
+" --json
+# ✓ overdue_count=30,928, total=486,580,420.26
 ```
 
 ## Profiles
-
-Switch between environments:
 
 ```yaml
 # ~/.config/odoo-cli/config.yaml
@@ -124,25 +114,17 @@ profiles:
 odoo-cli --profile production exec -c "print(client.search_count('res.partner', []))"
 ```
 
-## Helper Commands
-
-For simple operations without writing code:
+## Commands
 
 ```
 exec            Execute Python code (PRIMARY)
 search          Search records
 read            Read by ID
-create          Create record
-update          Update records
+create/update   Modify records
 delete          Delete records
-profiles        Manage profiles
+profiles        Manage environments
 ```
-
-## Links
-
-- [Releases](https://github.com/RHHOLDING/odoo-cli/releases)
-- [Changelog](CHANGELOG.md)
 
 ---
 
-Maintainer: [@actec-andre](https://github.com/actec-andre)
+[Changelog](CHANGELOG.md) | Maintainer: [@actec-andre](https://github.com/actec-andre)
