@@ -6,7 +6,7 @@
 
 Execute Python code against Odoo. Built for LLM agents.
 
-**v1.7.1** - Agent Experience: `agent-info` + global `--force` flag for readonly profiles
+**v1.7.2** - Fix: `--profile` now correctly overrides `.env` files
 
 ```bash
 pipx install git+https://github.com/RHHOLDING/odoo-cli.git

@@ -2,16 +2,21 @@
 Configuration loading for Odoo CLI
 Handles .env files, YAML profiles, environment variables, and config files
 
-Config Discovery Order (highest to lowest priority):
-1. Command-line arguments (--url, --db, --profile, etc.)
-2. Environment variables (ODOO_URL, ODOO_DB, ODOO_PROFILE, etc.)
-3. ODOO_CONFIG environment variable (explicit config path)
-4. Profile from YAML config file (if --profile or ODOO_PROFILE set)
-5. .env file in current directory
-6. .env file in parent directories (up to 5 levels, like Git)
-7. ~/.config/odoo-cli/.env (XDG standard)
-8. ~/.odoo-cli.env (legacy)
-9. ~/.odoo_cli.env (legacy)
+Config Priority Order (highest to lowest):
+1. Command-line arguments (--url, --db, --username, --password)
+2. Profile from YAML config (--profile or ODOO_PROFILE) - OVERRIDES .env
+3. Environment variables / .env files (ODOO_URL, ODOO_DB, etc.)
+4. Config file via --config flag (JSON)
+5. Default values
+
+.env File Search Order:
+1. ODOO_CONFIG environment variable (explicit path)
+2. .env in current directory
+3. .env in parent directories (up to 5 levels, like Git)
+4. ~/.config/odoo-cli/.env (XDG standard)
+5. ~/.odoo-cli.env or ~/.odoo_cli.env (legacy)
+
+IMPORTANT: --profile always wins over .env files!
 """
 
 import os
@@ -144,37 +149,16 @@ def load_config(
     config['_config_source'] = None  # Track where config was loaded from
     config['_profile'] = None  # Track active profile
 
-    # Try to load from profile first (if profile specified or ODOO_PROFILE set)
-    profile_name = profile or os.getenv('ODOO_PROFILE')
-    if profile_name:
-        try:
-            pm = get_profile_manager()
-            profile_config = pm.get_config(profile_name)
-            if profile_config:
-                config.update(profile_config)
-                config['_config_source'] = f"profile:{profile_name}"
-                config['_profile'] = profile_name
-        except Exception:
-            pass  # Fall through to .env loading
-
-    # Load from .env files (search multiple locations)
+    # Load from .env files FIRST (lowest priority for connection params)
     env_loaded = False
     for env_path in get_config_search_paths():
         if env_path.exists():
             load_dotenv(env_path, override=False)
-            if not env_loaded and not config.get('_config_source'):
+            if not env_loaded:
                 config['_config_source'] = str(env_path)
                 env_loaded = True
 
-    # Load from custom config file if provided
-    if config_file:
-        config_path = Path(config_file).expanduser()
-        if config_path.exists():
-            with open(config_path, 'r') as f:
-                file_config = json.load(f)
-                config.update(file_config)
-
-    # Load from environment variables (medium priority)
+    # Load from environment variables (set by .env or shell)
     env_config = {
         'url': os.getenv('ODOO_URL'),
         'db': os.getenv('ODOO_DB') or os.getenv('ODOO_DATABASE'),
@@ -194,6 +178,27 @@ def load_config(
                     config[key] = 30
             else:
                 config[key] = value
+
+    # Load from custom config file if provided
+    if config_file:
+        config_path = Path(config_file).expanduser()
+        if config_path.exists():
+            with open(config_path, 'r') as f:
+                file_config = json.load(f)
+                config.update(file_config)
+
+    # Profile OVERRIDES .env (--profile wins over .env file)
+    profile_name = profile or os.getenv('ODOO_PROFILE')
+    if profile_name:
+        try:
+            pm = get_profile_manager()
+            profile_config = pm.get_config(profile_name)
+            if profile_config:
+                config.update(profile_config)  # Profile overwrites .env values
+                config['_config_source'] = f"profile:{profile_name}"
+                config['_profile'] = profile_name
+        except Exception:
+            pass  # Fall through to existing config
 
     # Override with command-line arguments (highest priority)
     if url is not None:
