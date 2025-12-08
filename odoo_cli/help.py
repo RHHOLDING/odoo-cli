@@ -12,7 +12,7 @@ from typing import Dict, Any
 def get_llm_help() -> Dict[str, Any]:
     """Generate LLM-optimized help as JSON."""
     return {
-        "cli_version": "1.7.3",
+        "cli_version": "1.7.4",
         "protocol": "JSON-RPC",
         "timestamp": datetime.now().isoformat(),
 
@@ -39,10 +39,20 @@ def get_llm_help() -> Dict[str, Any]:
         "profiles": {
             "description": "Switch between environments",
             "commands": {
-                "list": "odoo-cli profiles list",
-                "show": "odoo-cli profiles show NAME",
-                "add": "odoo-cli profiles add NAME --url URL --db DB --username USER --password PASS",
+                "list": "odoo-cli profiles list --json",
+                "show": "odoo-cli profiles show NAME --json",
+                "add": "odoo-cli profiles add NAME --url URL --db DB -u USER -p PASS",
+                "edit": "odoo-cli profiles edit NAME --url NEW_URL",
+                "delete": "odoo-cli profiles delete NAME -y",
+                "rename": "odoo-cli profiles rename OLD_NAME NEW_NAME",
+                "test": "odoo-cli profiles test NAME --json",
+                "current": "odoo-cli profiles current --json",
+                "set-default": "odoo-cli profiles set-default NAME",
                 "use": "odoo-cli --profile NAME exec -c \"...\""
+            },
+            "automation": {
+                "delete_without_prompt": "Use -y/--yes or -f/--force to skip confirmation",
+                "example": "odoo-cli profiles delete old-staging -y"
             },
             "protection": {
                 "readonly": "Blocks create/write/unlink operations",

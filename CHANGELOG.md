@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.4] - Complete --llm-help for Profiles
+
+### Fixed
+- **`--llm-help` now shows all profile commands** - The real bug!
+  - Added: `delete`, `edit`, `rename`, `test`, `current`, `set-default`
+  - Added `automation` section explaining `-y/--force` flags
+  - LLM agents now know about `odoo-cli profiles delete NAME -y`
+
+### Why
+- LLM agents couldn't find `--force` because it wasn't in `--llm-help`
+- Complete documentation is better than adding aliases
+
 ## [1.7.3] - LLM-friendly Profile Delete
 
 ### Changed
@@ -14,8 +26,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Better documentation in help text
 
 ### Why
-- LLM agents had trouble with interactive confirmation prompts
 - `--yes/-y` is a more conventional flag name for automation
+- (Note: `--force/-f` already existed but wasn't documented in `--llm-help`)
 
 ## [1.6.3] - Quick Wins & Cleanup
 
