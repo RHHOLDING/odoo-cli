@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.3] - LLM-friendly Profile Delete
+
+### Changed
+- **`profiles delete` command** - Added `--yes/-y` alias for `--force/-f`
+  - LLM agents can now use: `odoo-cli profiles delete PROFILE -y`
+  - Skips interactive confirmation prompt
+  - Better documentation in help text
+
+### Why
+- LLM agents had trouble with interactive confirmation prompts
+- `--yes/-y` is a more conventional flag name for automation
+
 ## [1.6.3] - Quick Wins & Cleanup
 
 ### Added

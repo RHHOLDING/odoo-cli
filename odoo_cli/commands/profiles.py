@@ -403,7 +403,7 @@ def edit_profile(
 
 @profiles.command("delete")
 @click.argument("profile_name")
-@click.option("--force", "-f", is_flag=True, help="Skip confirmation")
+@click.option("--force", "-f", "--yes", "-y", is_flag=True, help="Skip confirmation (LLM-friendly)")
 @click.option("--json", "json_mode", is_flag=True, help="Output as JSON")
 @click.pass_obj
 def delete_profile(
@@ -412,11 +412,15 @@ def delete_profile(
     force: bool,
     json_mode: bool,
 ):
-    """Delete a profile.
+    """Delete a profile without interactive confirmation.
+
+    Use --force/-f or --yes/-y to skip the confirmation prompt.
+    This is recommended for automation and LLM agents.
 
     Example:
         odoo-cli profiles delete local
         odoo-cli profiles delete local --force
+        odoo-cli profiles delete local -y
     """
     if ctx:
         json_mode = json_mode or ctx.json_mode
