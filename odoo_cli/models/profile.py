@@ -306,8 +306,21 @@ class ProfileManager:
 
         # Write to file
         data = {"profiles": profiles_data}
+
+        # Use custom Dumper to properly quote strings with special chars
+        class QuotedDumper(yaml.SafeDumper):
+            pass
+
+        def str_representer(dumper, data):
+            # Quote strings containing YAML special chars to prevent escaping
+            if any(c in data for c in '!:#[]{}|>&*?'):
+                return dumper.represent_scalar('tag:yaml.org,2002:str', data, style='"')
+            return dumper.represent_scalar('tag:yaml.org,2002:str', data)
+
+        QuotedDumper.add_representer(str, str_representer)
+
         with open(self.config_path, "w") as f:
-            yaml.dump(data, f, default_flow_style=False, sort_keys=False)
+            yaml.dump(data, f, Dumper=QuotedDumper, default_flow_style=False, sort_keys=False)
 
     def add_profile(
         self,
