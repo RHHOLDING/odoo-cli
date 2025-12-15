@@ -6,7 +6,7 @@
 
 Execute Python code against Odoo. Built for LLM agents.
 
-**v1.7.2** - Fix: `--profile` now correctly overrides `.env` files
+**v1.7.5** - Pre-execution validation detects `env` usage and suggests `client` alternatives
 
 ```bash
 pipx install git+https://github.com/RHHOLDING/odoo-cli.git
@@ -57,6 +57,9 @@ pprint      # Pretty printer
 # Set 'result' for structured output
 result = {"key": "value"}
 ```
+
+> **Note:** Use `client`, not `env`. This is JSON-RPC, not server-side Python.
+> Code using `env['model']` or `self.env` will fail with a helpful error message.
 
 ### Examples
 

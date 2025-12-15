@@ -5,6 +5,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.5] - Pre-execution Validation for `env` Usage
+
+### Added
+- **`exec` command now validates code before execution**
+  - Detects Odoo server-side `env` patterns that won't work via JSON-RPC
+  - Shows helpful error with conversion suggestions BEFORE NameError occurs
+  - LLM-friendly JSON output with `error_type: "env_not_available"`
+
+### Detected Patterns
+| Server-side (won't work) | JSON-RPC equivalent |
+|--------------------------|---------------------|
+| `env['model']` | `client.search_read('model', ...)` |
+| `env.ref('xml_id')` | `client.execute('ir.model.data', 'xmlid_to_res_id', ...)` |
+| `self.env` | `client` |
+| `env.user` | `client.execute('res.users', 'read', [uid], ...)` |
+
+### Why
+- LLM agents sometimes confuse Odoo's server-side `env` with `client`
+- Clear error messages help agents self-correct immediately
+- Prevents cryptic `NameError: name 'env' is not defined`
+
+### Example Error Output (JSON)
+```json
+{
+  "success": false,
+  "error": "'env' is not available in odoo-cli...",
+  "error_type": "env_not_available",
+  "detected_patterns": [{"pattern": "env['model']", "replacement": "client.search_read(...)"}],
+  "hint": "Replace env.* calls with equivalent client.* methods."
+}
+```
+
 ## [1.7.4] - Complete --llm-help for Profiles
 
 ### Fixed

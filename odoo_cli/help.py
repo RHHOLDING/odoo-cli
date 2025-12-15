@@ -12,7 +12,7 @@ from typing import Dict, Any
 def get_llm_help() -> Dict[str, Any]:
     """Generate LLM-optimized help as JSON."""
     return {
-        "cli_version": "1.7.4",
+        "cli_version": "1.7.5",
         "protocol": "JSON-RPC",
         "timestamp": datetime.now().isoformat(),
 
@@ -32,6 +32,8 @@ def get_llm_help() -> Dict[str, Any]:
                 "pprint": "Pretty printer",
                 "result": "Set this for structured JSON output"
             },
+            "important": "Use 'client' NOT 'env'. This is JSON-RPC, not server-side Python. "
+                         "'env' does not exist here.",
             "output": "✓ human-readable summary first, then JSON"
         },
 
@@ -123,6 +125,20 @@ result = {'count': len(orders), 'total': sum(o['amount_total'] for o in orders)}
 
         # Error handling
         "errors": {
+            "env_not_available": {
+                "message": "'env' is not available in odoo-cli",
+                "explanation": "odoo-cli uses JSON-RPC (external API), not server-side Python. "
+                               "The 'env' object only exists inside Odoo server code.",
+                "solution": "Use 'client' instead of 'env'",
+                "conversions": {
+                    "env['model'].search()": "client.execute('model', 'search', domain)",
+                    "env['model'].browse(ids)": "client.execute('model', 'read', ids, fields)",
+                    "env.ref('xml_id')": "client.execute('ir.model.data', 'xmlid_to_res_id', 'module.xml_id')",
+                    "self.env": "client (no self in JSON-RPC context)",
+                    "env.user": "client.execute('res.users', 'read', [uid], fields)",
+                    "record.field": "Use search_read to get field values directly"
+                }
+            },
             "readonly_blocked": {
                 "message": "Write operation blocked: profile is readonly",
                 "solution": "Use global --force flag: odoo-cli --force <command>, or use non-readonly profile"

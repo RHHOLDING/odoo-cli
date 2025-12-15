@@ -9,13 +9,45 @@ import click
 import sys
 import json as json_lib
 import io
+import re
 from contextlib import redirect_stdout, redirect_stderr
-from typing import Optional
+from typing import Optional, Tuple, List
 from datetime import datetime, date, timedelta
 from pprint import pprint
 
 from odoo_cli.models.context import CliContext
 from odoo_cli.utils.output import output_json, output_error
+
+
+# Patterns that indicate Odoo server-side `env` usage (not available in JSON-RPC)
+ENV_PATTERNS = [
+    (r'\benv\s*\[', "env['model']", "client.search_read('model', ...)"),
+    (r'\benv\.ref\s*\(', "env.ref('xml_id')", "client.execute('ir.model.data', 'xmlid_to_res_id', 'module.xml_id')"),
+    (r'\bself\.env\b', "self.env", "client (no self in JSON-RPC context)"),
+    (r'\benv\.\w+\s*\(', "env.method()", "client.method() or client.execute()"),
+    (r'\benv\.user\b', "env.user", "client.search_read('res.users', [['id', '=', uid]], ...)"),
+    (r'\benv\.company\b', "env.company", "client.search_read('res.company', ...) with context"),
+    (r'\benv\.context\b', "env.context", "Pass context via client methods"),
+]
+
+
+def _detect_env_usage(code: str) -> Tuple[bool, List[dict]]:
+    """
+    Detect if code uses Odoo server-side `env` patterns.
+
+    Returns:
+        Tuple of (has_env_usage, list of detected patterns with suggestions)
+    """
+    detected = []
+
+    for pattern, example, replacement in ENV_PATTERNS:
+        if re.search(pattern, code):
+            detected.append({
+                "pattern": example,
+                "replacement": replacement,
+            })
+
+    return len(detected) > 0, detected
 
 
 def _summarize_result(result) -> str:
@@ -131,6 +163,35 @@ def exec_code(ctx: CliContext, script: Optional[str], inline_code: Optional[str]
         else:
             click.echo(f"Connection error: {e}")
         sys.exit(1)
+
+    # Check for common Odoo server-side patterns that won't work via JSON-RPC
+    has_env_usage, env_patterns = _detect_env_usage(code_to_run)
+    if has_env_usage:
+        error_msg = (
+            "'env' is not available in odoo-cli. "
+            "This tool uses JSON-RPC, not server-side Python. Use 'client' instead."
+        )
+        if json_mode:
+            output_json({
+                "success": False,
+                "error": error_msg,
+                "error_type": "env_not_available",
+                "detected_patterns": env_patterns,
+                "hint": "Replace env.* calls with equivalent client.* methods. "
+                        "Available: client.search(), client.read(), client.search_read(), "
+                        "client.create(), client.write(), client.unlink(), client.execute()",
+                "documentation": "Run: odoo-cli exec --help",
+            })
+        else:
+            click.echo(f"Error: {error_msg}", err=True)
+            click.echo("\nDetected patterns and replacements:", err=True)
+            for p in env_patterns:
+                click.echo(f"  {p['pattern']}  →  {p['replacement']}", err=True)
+            click.echo("\nAvailable client methods:", err=True)
+            click.echo("  client.search(), client.read(), client.search_read()", err=True)
+            click.echo("  client.create(), client.write(), client.unlink()", err=True)
+            click.echo("  client.execute(), client.search_count()", err=True)
+        sys.exit(3)  # Operation error
 
     # Setup execution namespace
     namespace = {
