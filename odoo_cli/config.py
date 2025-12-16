@@ -189,16 +189,20 @@ def load_config(
 
     # Profile OVERRIDES .env (--profile wins over .env file)
     profile_name = profile or os.getenv('ODOO_PROFILE')
-    if profile_name:
-        try:
-            pm = get_profile_manager()
-            profile_config = pm.get_config(profile_name)
-            if profile_config:
-                config.update(profile_config)  # Profile overwrites .env values
-                config['_config_source'] = f"profile:{profile_name}"
-                config['_profile'] = profile_name
-        except Exception:
-            pass  # Fall through to existing config
+
+    # Always try to load a profile (get_config will auto-select default if profile_name is None)
+    try:
+        pm = get_profile_manager()
+        profile_config = pm.get_config(profile_name)
+        if profile_config:
+            config.update(profile_config)  # Profile overwrites .env values
+            # Determine which profile was actually loaded
+            loaded_profile = pm.get_profile(profile_name)
+            if loaded_profile:
+                config['_config_source'] = f"profile:{loaded_profile.name}"
+                config['_profile'] = loaded_profile.name
+    except Exception:
+        pass  # Fall through to existing config
 
     # Override with command-line arguments (highest priority)
     if url is not None:
