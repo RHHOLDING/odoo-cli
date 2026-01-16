@@ -27,11 +27,10 @@ from rich.console import Console
 @click.pass_context
 def cli(ctx, json, llm_help, force, profile, config, url, db, username, password, timeout, no_verify_ssl):
     """
-    Execute Python code against Odoo.
+    LLM-friendly Odoo JSON-RPC interface (v2.0 - exec-only architecture).
 
     \b
-    PRIMARY USAGE (exec):
-        odoo-cli exec -c "print(client.search_count('res.partner', []))"
+    PRIMARY USAGE:
         odoo-cli exec -c "result = client.search_read('res.partner', [], limit=5)" --json
         odoo-cli exec script.py --json
 
@@ -40,16 +39,19 @@ def cli(ctx, json, llm_help, force, profile, config, url, db, username, password
         client.search(model, domain)
         client.search_read(model, domain, fields, limit)
         client.read(model, ids, fields)
-        client.create(model, values)  # blocked if profile is readonly
+        client.create(model, values)
         client.write(model, ids, values)
         client.unlink(model, ids)
+        client.execute(model, method, *args)
 
     \b
     SETUP:
-        odoo-cli profiles add staging --url https://... --db mydb -u admin -p secret
-        odoo-cli profiles list
+        odoo-cli config add staging --url https://... --db mydb -u admin -p secret
+        odoo-cli config list
 
-    Helper commands (search, create, read, etc.) available for simple operations.
+    \b
+    LLM BOOTSTRAP:
+        odoo-cli agent-info
     """
     # Handle LLM help request (no credentials needed)
     if llm_help:
@@ -104,35 +106,21 @@ def cli(ctx, json, llm_help, force, profile, config, url, db, username, password
         click.echo(ctx.get_help())
 
 
-# Import commands to register them
-from odoo_cli.commands import execute, search, read, get_models, get_fields
-from odoo_cli.commands import search_employee, search_holidays, shell, create, update, delete, create_bulk, update_bulk, aggregate, search_count, name_get, name_search, context
-from odoo_cli.commands import profiles, exec_code, agent_info
+# Import v2.0 commands (exec-only architecture)
+from odoo_cli.commands import context, profiles, exec_code, agent_info
+from odoo_cli.deprecation import DEPRECATED_COMMANDS, create_deprecation_handler
 
-# Register commands
+# Register v2.0 commands
 cli.add_command(exec_code.exec_code)  # PRIMARY: Execute Python code
-cli.add_command(create.create)  # User-friendly create command
-cli.add_command(update.update)  # User-friendly update command
-cli.add_command(delete.delete)  # User-friendly delete command
-cli.add_command(create_bulk.create_bulk)  # Batch create command
-cli.add_command(update_bulk.update_bulk)  # Batch update command
-cli.add_command(aggregate.aggregate)  # Aggregation helper command
-cli.add_command(execute.execute)
-cli.add_command(search.search)
-cli.add_command(search_count.search_count)  # Quick win: fast counting
-cli.add_command(name_get.name_get)  # Quick win: ID to name conversion
-cli.add_command(name_search.name_search)  # Quick win: fuzzy name search
-cli.add_command(read.read)
-cli.add_command(get_models.get_models)
-cli.add_command(get_models.get_models, name='models')  # Alias: models = get-models
-cli.add_command(get_fields.get_fields)
-cli.add_command(get_fields.get_fields, name='fields')  # Alias: fields = get-fields
-cli.add_command(search_employee.search_employee)
-cli.add_command(search_holidays.search_holidays)
-cli.add_command(shell.shell)
 cli.add_command(context.context)  # Project context management
 cli.add_command(profiles.profiles)  # Environment profile management
+cli.add_command(profiles.profiles, name='config')  # Alias: config = profiles
 cli.add_command(agent_info.agent_info)  # Agent orientation/bootstrap
+
+# Register deprecation handlers for removed commands
+# These provide helpful migration guidance instead of "No such command" errors
+for cmd_name in DEPRECATED_COMMANDS:
+    cli.add_command(create_deprecation_handler(cmd_name), name=cmd_name)
 
 
 def main():

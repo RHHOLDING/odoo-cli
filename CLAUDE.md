@@ -80,28 +80,22 @@ This structure allows LLMs to:
 2. Understand the error category (field_validation)
 3. Take corrective action (suggest alternatives, run get-fields)
 
-### JSON Output Modes (v1.4.1+)
+### JSON Output Modes
 
-**Three ways to get JSON output (in priority order):**
+**Two ways to get JSON output:**
 
 ```bash
-# 1. Command-level flag (RECOMMENDED for LLMs)
-odoo-cli search res.partner '[]' --json
+# 1. Command-level flag
+odoo-cli exec -c "result = client.search_read('res.partner', [], limit=5)" --json
 
-# 2. Environment variable (set once, affects all commands)
+# 2. Environment variable (RECOMMENDED for automation)
 export ODOO_CLI_JSON=1
-odoo-cli search res.partner '[]'  # Automatic JSON output!
-
-# 3. Global flag (legacy method)
-odoo-cli --json search res.partner '[]'
+odoo-cli exec -c "result = client.search_read('res.partner', [], limit=5)"
 ```
-
-**Priority:** Command `--json` > `ODOO_CLI_JSON` > Global `--json` > Default (Rich output)
 
 **For LLM automation:**
 - Set `ODOO_CLI_JSON=1` in your environment once
 - All commands return structured JSON automatically
-- No need to add `--json` to every command
 - Perfect for scripting and automation workflows
 
 **Example: Python automation**
@@ -110,12 +104,12 @@ import os
 import subprocess
 import json
 
-# Set once for all commands
 os.environ['ODOO_CLI_JSON'] = '1'
 
-# All commands return JSON automatically
-result = subprocess.run(['odoo-cli', 'search', 'res.partner', '[]'],
-                       capture_output=True, text=True)
+result = subprocess.run([
+    'odoo-cli', 'exec', '-c',
+    "result = client.search_read('res.partner', [], limit=5)"
+], capture_output=True, text=True)
 data = json.loads(result.stdout)
 ```
 
@@ -134,25 +128,28 @@ data = json.loads(result.stdout)
 
 ## Current Version
 
-**v1.5.0 - Project Context Layer for LLM Agents**
-- ✅ `context show` command - Display business metadata
-- ✅ `context guide --task` command - Task-specific context guidance
-- ✅ `context validate` command - Validate context files (normal & strict modes)
-- ✅ `.odoo-context.json` support - Manually-maintained business context
-- ✅ JSON Schema validation - Strict mode schema enforcement
-- ✅ Security scanning - Detect "password"/"token" literals
-- ✅ All 19 commands with JSON output support
-- ✅ Core CLI + JSON-RPC client
-- ✅ CRUD commands (create, read, update, delete + bulk)
-- ✅ Field parser & aggregation
-- ✅ Context management (multi-company, translations, archived)
-- ✅ Quick wins: search-count, name-get, name-search, fields_get optimization
+**v2.0.0 - exec-only Architecture**
 
-**Next: v1.6.0 - Environment Profiles**
-- Specification ready in `.specify/features/001_environment_profiles/`
-- Easy switching between prod/staging/dev environments
-- Per-profile configurations
-- Integration with context layer
+All Odoo operations now go through the `exec` command. This is a major breaking change.
+
+**Commands in v2.0:**
+```
+exec            Execute Python code (PRIMARY - all Odoo operations)
+config          Manage connection profiles (alias: profiles)
+context         Project business context
+agent-info      Complete API reference for LLM agents
+```
+
+**Why exec-only?**
+- LLM agents write Python - they don't need specialized CLI commands
+- One interface to learn - `exec` with the `client` object handles everything
+- More flexible - complex operations, loops, conditionals all work naturally
+- Easier maintenance - 4 commands instead of 20+
+
+**Removed commands (with migration guidance):**
+`search`, `read`, `create`, `update`, `delete`, `create-bulk`, `update-bulk`, `aggregate`, `search-count`, `name-get`, `name-search`, `get-models`, `get-fields`, `execute`, `search-employee`, `search-holidays`, `shell`
+
+When deprecated commands are used, the CLI returns helpful JSON with migration instructions.
 
 ## Context File Configuration (v1.5.1+)
 
@@ -253,22 +250,17 @@ When writing examples, use Odoo's standard demo data:
 
 ## Common Tasks
 
-### Add New Command
-1. Create file in `odoo_cli/commands/your_command.py`
-2. Use `@click.command()` decorator
-3. Add `@click.pass_obj` for context
-4. Handle JSON mode: `json_mode = json_mode or ctx.json_mode`
-5. Use `output_json()` and `output_error()` from utils
-6. Register in `odoo_cli/cli.py`
-7. Update `--llm-help` in `odoo_cli/help.py`
-8. Add tests in `tests/unit/test_commands_your_command.py`
-9. Document in README.md
+### v2.0 Architecture Note
+In v2.0, all Odoo operations go through `exec`. New functionality is added via:
+- Client methods in `odoo_cli/client.py`
+- Patterns documented in `agent-info` and `--llm-help`
+
+**No new CLI commands should be added** - the exec-only architecture is intentional.
 
 ### Update LLM Help
 File: `odoo_cli/help.py`
-- Add new commands to `commands` array
-- Add decision tree entries for new use cases
-- Update version number
+- Add new patterns to the `patterns` section
+- Update client API reference
 - Keep JSON structure LLM-parsable
 
 ### Release New Version

@@ -4,7 +4,7 @@ Odoo XML-RPC CLI Tool
 A standalone, LLM-optimized command-line interface for Odoo operations.
 """
 
-__version__ = "1.7.4"
+__version__ = "2.0.0"
 __author__ = "Andre Kremer"
 __email__ = "andre@solarcraft.gmbh"
 

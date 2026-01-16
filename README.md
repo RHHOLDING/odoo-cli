@@ -6,7 +6,7 @@
 
 Execute Python code against Odoo. Built for LLM agents.
 
-**v1.7.5** - Pre-execution validation detects `env` usage and suggests `client` alternatives
+**v2.0.0** - exec-only architecture. All Odoo operations through Python code.
 
 ```bash
 pipx install git+https://github.com/RHHOLDING/odoo-cli.git
@@ -34,14 +34,14 @@ Human-readable summary first, full JSON below.
 
 ```bash
 # 1. Setup profile
-odoo-cli profiles add staging \
+odoo-cli config add staging \
   --url https://your-instance.odoo.com \
   --db your-database \
   --username admin@example.com \
   --password secret
 
 # 2. Execute code
-odoo-cli exec -c "print(client.search_count('res.partner', []))"
+odoo-cli exec -c "result = client.search_count('res.partner', [])" --json
 ```
 
 ## Python Execution
@@ -61,12 +61,34 @@ result = {"key": "value"}
 > **Note:** Use `client`, not `env`. This is JSON-RPC, not server-side Python.
 > Code using `env['model']` or `self.env` will fail with a helpful error message.
 
+### Client API
+
+```python
+# Query methods
+client.search(model, domain, limit=None)           # Returns IDs
+client.read(model, ids, fields=None)               # Returns records
+client.search_read(model, domain, fields, limit)   # Combined (most efficient)
+client.search_count(model, domain)                 # Returns count
+client.fields_get(model)                           # Returns field definitions
+client.get_models()                                # Returns all model names
+
+# Write methods (blocked if profile is readonly)
+client.create(model, values)                       # Returns new ID
+client.write(model, ids, values)                   # Returns True
+client.unlink(model, ids)                          # Returns True
+
+# Generic method call
+client.execute(model, method, *args, **kwargs)     # Call any Odoo method
+```
+
 ### Examples
 
 ```bash
 # Count records
 odoo-cli exec -c "result = client.search_count('res.partner', [])" --json
-# ✓ 98,559
+
+# Fetch records with fields
+odoo-cli exec -c "result = client.search_read('res.partner', [], ['name', 'email'], limit=10)" --json
 
 # Top customers by revenue
 odoo-cli exec -c "
@@ -77,20 +99,15 @@ for s in sales:
     by_partner[name] = by_partner.get(name, 0) + s['amount_total']
 result = dict(sorted(by_partner.items(), key=lambda x: -x[1])[:5])
 " --json
-# ✓ ACME Corp=480,317.58, Globex=69,562.24, Initech=19,420.65, ...+2 more
 
-# Overdue invoices
-odoo-cli exec -c "
-from datetime import date, timedelta
-cutoff = (date.today() - timedelta(days=30)).isoformat()
-overdue = client.search_read('account.move', [
-    ['move_type', '=', 'out_invoice'],
-    ['payment_state', '!=', 'paid'],
-    ['invoice_date', '<', cutoff]
-], ['amount_residual'])
-result = {'overdue_count': len(overdue), 'total': sum(i['amount_residual'] for i in overdue)}
-" --json
-# ✓ overdue_count=30,928, total=486,580,420.26
+# Create a record
+odoo-cli exec -c "result = client.create('res.partner', {'name': 'New Partner', 'email': 'new@example.com'})" --json
+
+# Update a record
+odoo-cli exec -c "client.write('res.partner', [123], {'name': 'Updated'}); result = {'updated': True}" --json
+
+# Call workflow action
+odoo-cli exec -c "result = client.execute('sale.order', 'action_confirm', [order_id])" --json
 ```
 
 ## Profiles
@@ -114,43 +131,63 @@ profiles:
 ```
 
 ```bash
-odoo-cli --profile production exec -c "print(client.search_count('res.partner', []))"
+# Use specific profile
+odoo-cli --profile production exec -c "result = client.search_count('res.partner', [])" --json
 
 # Override readonly protection with global --force flag
-odoo-cli --profile production --force update res.partner 123 -f "name=Test"
+odoo-cli --force --profile production exec -c "result = client.create('res.partner', {'name': 'Test'})" --json
+```
+
+### Profile Management
+
+```bash
+odoo-cli config list                    # List all profiles
+odoo-cli config add NAME --url ...      # Add new profile
+odoo-cli config edit NAME --readonly    # Set profile to readonly
+odoo-cli config delete NAME -y          # Delete profile
+odoo-cli config test NAME               # Test connection
 ```
 
 ## For LLM Agents
 
 ```bash
-# Quick tool orientation
+# Complete API reference and bootstrap
 odoo-cli agent-info
 
-# LLM-optimized help (full JSON reference)
+# LLM-optimized help (JSON format)
 odoo-cli --llm-help
 ```
 
 The `agent-info` command provides structured JSON with:
 - Connection status and active profile
-- Available commands grouped by capability (read/write/meta)
-- Quick-start examples
-- Important flags (`--json`, `--force`, `--profile`)
+- Complete client API reference
+- Common code patterns
+- Domain syntax reference
+- Error handling guide
 
-## Commands
+## Commands (v2.0)
 
 ```
-exec            Execute Python code (PRIMARY)
-search          Search records
-read            Read by ID
-create/update   Modify records
-delete          Delete records
-profiles        Manage environments
-agent-info      Quick orientation for LLM agents
+exec            Execute Python code (PRIMARY - all Odoo operations)
+config          Manage connection profiles (alias: profiles)
+context         Project business context
+agent-info      Complete API reference for LLM agents
 
 # Global flags (before command):
 --force         Override readonly profile protection
 --profile NAME  Use specific profile
 --json          Output JSON format
+```
+
+## JSON Output
+
+```bash
+# Per-command flag
+odoo-cli exec -c "..." --json
+
+# Environment variable (recommended for automation)
+export ODOO_CLI_JSON=1
+odoo-cli exec -c "..."  # Automatic JSON output
 ```
 
 ---
