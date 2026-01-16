@@ -5,6 +5,58 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - exec-only Architecture
+
+### Breaking Changes
+- **exec-only architecture** - All Odoo operations now go through the `exec` command
+- **Removed 17 helper commands** - `search`, `read`, `create`, `update`, `delete`, `create-bulk`, `update-bulk`, `aggregate`, `search-count`, `name-get`, `name-search`, `get-models`, `get-fields`, `execute`, `search-employee`, `search-holidays`, `shell`
+- Deprecated commands return helpful migration guidance instead of "No such command" errors
+
+### Why This Change
+- **LLM agents write Python** - They don't need specialized CLI commands
+- **One interface to learn** - `exec` with the `client` object handles everything
+- **More flexible** - Complex operations, loops, conditionals all work naturally
+- **Easier maintenance** - 4 commands instead of 20+
+
+### Migration Guide
+
+| Old Command | New (exec) Equivalent |
+|-------------|----------------------|
+| `odoo-cli search res.partner '[]'` | `odoo-cli exec -c "result = client.search_read('res.partner', [])"` |
+| `odoo-cli read res.partner 1` | `odoo-cli exec -c "result = client.read('res.partner', [1])"` |
+| `odoo-cli create res.partner name=Test` | `odoo-cli exec -c "result = client.create('res.partner', {'name': 'Test'})"` |
+| `odoo-cli search-count res.partner '[]'` | `odoo-cli exec -c "result = client.search_count('res.partner', [])"` |
+| `odoo-cli get-fields res.partner` | `odoo-cli exec -c "result = client.fields_get('res.partner')"` |
+| `odoo-cli get-models` | `odoo-cli exec -c "result = client.get_models()"` |
+
+### Commands in v2.0
+
+```
+exec            Execute Python code (PRIMARY - all Odoo operations)
+config          Manage connection profiles (alias: profiles)
+context         Project business context
+agent-info      Complete API reference for LLM agents
+```
+
+### Added
+- **Deprecation handlers** - Old commands return structured JSON with migration instructions
+- **Enhanced agent-info** - Complete client API reference, patterns, domain syntax
+- **Updated --llm-help** - Focused on exec patterns
+
+### Error-Driven Learning
+When an agent uses a deprecated command:
+```json
+{
+  "success": false,
+  "error": "Command 'search' is deprecated in v2.0",
+  "error_type": "deprecated_command",
+  "migration": {
+    "old_command": "odoo-cli search res.partner '[]' --json",
+    "new_command": "odoo-cli exec -c \"result = client.search_read('res.partner', [])\" --json"
+  }
+}
+```
+
 ## [1.7.5] - Pre-execution Validation for `env` Usage
 
 ### Added
@@ -441,6 +493,11 @@ profiles:
 - [Contributing](CONTRIBUTING.md)
 - [Security](SECURITY.md)
 
+[2.0.0]: https://github.com/RHHOLDING/odoo-cli/compare/v1.7.5...v2.0.0
+[1.7.5]: https://github.com/RHHOLDING/odoo-cli/compare/v1.7.4...v1.7.5
+[1.7.4]: https://github.com/RHHOLDING/odoo-cli/compare/v1.7.3...v1.7.4
+[1.7.3]: https://github.com/RHHOLDING/odoo-cli/compare/v1.6.3...v1.7.3
+[1.6.3]: https://github.com/RHHOLDING/odoo-cli/compare/v1.6.2...v1.6.3
 [1.6.2]: https://github.com/RHHOLDING/odoo-cli/compare/v1.6.1...v1.6.2
 [1.6.1]: https://github.com/RHHOLDING/odoo-cli/compare/v1.6.0...v1.6.1
 [1.6.0]: https://github.com/RHHOLDING/odoo-cli/compare/v1.5.1...v1.6.0
