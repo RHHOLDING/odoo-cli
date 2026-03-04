@@ -6,7 +6,7 @@
 
 Execute Python code against Odoo. Built for LLM agents.
 
-**v2.0.0** - exec-only architecture. All Odoo operations through Python code.
+**v2.0.1** - exec-only architecture. All Odoo operations through Python code.
 
 ```bash
 pipx install git+https://github.com/RHHOLDING/odoo-cli.git
