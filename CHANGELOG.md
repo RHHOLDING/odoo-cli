@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.1] - 2025-03-04
+
+### Fixed
+- **Clean `--help` output** - Deprecated v1.x commands no longer clutter the help listing; only the 4 active v2.0 commands are shown (`exec`, `config`, `context`, `agent-info`)
+- **Password shell escaping** - Passwords with special characters (e.g. `!`, `#`) are no longer mangled by shell escaping; `--password` is now securely prompted when omitted from a terminal, while automation/LLM usage via explicit `--password` flag remains unchanged
+
 ## [2.0.0] - exec-only Architecture
 
 ### Breaking Changes

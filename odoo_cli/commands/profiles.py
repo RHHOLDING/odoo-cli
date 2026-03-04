@@ -4,6 +4,8 @@ Profile management commands for odoo-cli.
 Allows listing, showing, and testing environment profiles.
 """
 
+import sys
+
 import click
 import json as json_lib
 from typing import Optional
@@ -264,7 +266,7 @@ def current_profile(ctx: Optional[CliContext], json_mode: bool):
 @click.option("--url", required=True, help="Odoo server URL")
 @click.option("--db", required=True, help="Database name")
 @click.option("--username", "-u", required=True, help="Login username")
-@click.option("--password", "-p", required=True, help="Login password")
+@click.option("--password", "-p", default=None, help="Login password (prompted securely if omitted from terminal)")
 @click.option("--timeout", type=int, default=30, help="Connection timeout (default: 30)")
 @click.option("--no-verify-ssl", is_flag=True, help="Disable SSL verification")
 @click.option("--default", "set_default", is_flag=True, help="Set as default profile")
@@ -286,12 +288,22 @@ def add_profile(
 ):
     """Add a new profile.
 
+    Password is prompted securely when omitted from a terminal.
+    For automation, pass --password explicitly.
+
     Example:
         odoo-cli profiles add local --url http://localhost:8069 --db odoo --username admin --password admin
         odoo-cli profiles add prod --url https://prod.odoo.com --db prod --username admin --password secret --readonly
     """
     if ctx:
         json_mode = json_mode or ctx.json_mode
+
+    # Handle password: prompt interactively if omitted from terminal, error otherwise
+    if password is None:
+        if sys.stdin.isatty() and not json_mode:
+            password = click.prompt("Password", hide_input=True)
+        else:
+            raise click.UsageError("Missing option '--password' / '-p'.")
 
     pm = ProfileManager()
     result = pm.add_profile(

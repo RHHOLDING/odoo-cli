@@ -251,6 +251,7 @@ def create_deprecation_handler(cmd_name: str):
     """
     @click.command(
         cmd_name,
+        hidden=True,
         context_settings={
             "allow_extra_args": True,
             "allow_interspersed_args": False,
