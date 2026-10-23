@@ -16,14 +16,23 @@ class CliContext:
     json_mode: bool
     console: Console
     force_mode: bool = False  # Global --force flag to override readonly
+    # Set when --profile / ODOO_PROFILE names no profile and the command runs offline (config, context).
+    profile_error: Optional[Exception] = None
     _client: Optional[OdooClient] = None
+
+    def require_profile(self) -> None:
+        """Exit 2 if the named profile does not exist; before anything connects."""
+        if self.profile_error is not None:
+            from odoo_cli.config import PROFILE_SUGGESTION
+            from odoo_cli.utils.output import output_error
+            output_error(str(self.profile_error), error_type='profile_not_found', suggestion=PROFILE_SUGGESTION,
+                         console=self.console, json_mode=self.json_mode, exit_code=2)
 
     @property
     def client(self) -> OdooClient:
         """Lazy-load and cache the Odoo client"""
         if self._client is None:
-            if self.config.get('_profile_error'):
-                raise self.config['_profile_error']
+            self.require_profile()
             from odoo_cli.client import get_odoo_client
             self._client = get_odoo_client(
                 url=self.config.get('url'),

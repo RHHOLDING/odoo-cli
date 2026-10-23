@@ -7,28 +7,14 @@ import sys
 import os
 from typing import Optional
 from odoo_cli.models.context import CliContext
-from odoo_cli.config import ProfileNotFoundError, load_config, validate_config
+from odoo_cli.config import PROFILE_SUGGESTION, ProfileNotFoundError, load_config, validate_config
+from odoo_cli.utils.output import output_error
 from odoo_cli.help import print_llm_help
 from rich.console import Console
 
 # Commands that never connect: they still run when the named profile does not exist (to add it,
-# list the profiles, read the local context), and the error waits for the first use of the client.
+# list the profiles, read the local context); a connecting step in them calls require_profile().
 OFFLINE_COMMANDS = frozenset({'config', 'profiles', 'context'})
-
-
-def _profile_not_found(error, json_mode, console):
-    """Stop before connecting: exit 2, never another configuration."""
-    if json_mode:
-        import json as json_lib
-        click.echo(json_lib.dumps({
-            'success': False,
-            'error': str(error),
-            'error_type': 'profile_not_found',
-            'suggestion': 'Use one of the defined profiles (odoo-cli config list), or unset ODOO_PROFILE',
-        }))
-    else:
-        console.print(f"[red]✗ Configuration error:[/red] {error}")
-    sys.exit(2)
 
 
 @click.group(invoke_without_command=True)
@@ -86,6 +72,7 @@ def cli(ctx, json, llm_help, force, profile, config, url, db, username, password
     console = Console(stderr=True) if not json_mode else Console(file=sys.stderr, stderr=True)
 
     # Load configuration
+    profile_error = None
     try:
         config_dict = load_config(
             config_file=config,
@@ -98,12 +85,10 @@ def cli(ctx, json, llm_help, force, profile, config, url, db, username, password
             verify_ssl=not no_verify_ssl
         )
     except ProfileNotFoundError as e:
-        if ctx.invoked_subcommand in OFFLINE_COMMANDS:
-            # Managing profiles and reading the local context need no connection; the error waits
-            # for the first use of the client.
-            config_dict = {'_profile_error': e}
-        else:
-            _profile_not_found(e, json_mode, console)
+        config_dict, profile_error = {}, e
+        if ctx.invoked_subcommand not in OFFLINE_COMMANDS:
+            output_error(str(e), error_type='profile_not_found', suggestion=PROFILE_SUGGESTION, console=console,
+                         json_mode=json_mode, exit_code=2)
     except Exception as e:
         if json_mode:
             error_response = {
@@ -124,7 +109,8 @@ def cli(ctx, json, llm_help, force, profile, config, url, db, username, password
         config=config_dict,
         json_mode=json_mode,
         console=console,
-        force_mode=force
+        force_mode=force,
+        profile_error=profile_error,
     )
 
     # If no command specified, show help

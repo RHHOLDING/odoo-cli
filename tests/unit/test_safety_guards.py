@@ -156,7 +156,8 @@ class TestUnknownProfile:
         assert listed.exit_code == 0, listed.output
         assert CliRunner().invoke(cli, ["--json", "exec", "-c", "result = 1"]).exit_code == 2
         assert CliRunner().invoke(cli, ["--json", "agent-info"]).exit_code == 2  # it connects
-        assert CliRunner().invoke(cli, ["--json", "config", "test", "staging"]).exit_code == 2
+        tested = CliRunner().invoke(cli, ["--json", "config", "test", "staging"])
+        assert tested.exit_code == 2 and json.loads(tested.output)["success"] is False
 
     def test_the_client_does_not_resolve_the_profile_again(self, monkeypatch):
         """--profile staging wins: ODOO_PROFILE=typo must not be read a second time."""

@@ -5,6 +5,8 @@ Provides structured JSON to help AI agents understand how to use the tool.
 """
 
 import json
+
+from odoo_cli import __version__
 from datetime import datetime
 from typing import Dict, Any
 
@@ -12,7 +14,7 @@ from typing import Dict, Any
 def get_llm_help() -> Dict[str, Any]:
     """Generate LLM-optimized help as JSON."""
     return {
-        "cli_version": "2.1.0",
+        "cli_version": __version__,
         "architecture": "exec-only",
         "protocol": "JSON-RPC",
         "timestamp": datetime.now().isoformat(),

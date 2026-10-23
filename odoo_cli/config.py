@@ -27,14 +27,13 @@ from dotenv import load_dotenv
 
 # Import ProfileManager (lazy to avoid circular imports)
 _profile_manager = None
+PROFILE_SUGGESTION = 'Use one of the defined profiles (odoo-cli config list), or unset ODOO_PROFILE'
 
 
 class ProfileNotFoundError(ValueError):
     """A profile was named (--profile or ODOO_PROFILE) that the profile config does not define."""
 
     def __init__(self, name: str, known: List[str]):
-        self.name = name
-        self.known = known
         super().__init__(
             f"Unknown profile '{name}'. Defined profiles: {', '.join(known) or '(none)'}. "
             f"Nothing was run: an unknown profile never falls back to another configuration."
@@ -199,13 +198,13 @@ def load_config(
                 file_config = json.load(f)
                 config.update(file_config)
 
-    # Profile OVERRIDES .env (--profile wins over .env file)
-    profile_name = profile if profile is not None else os.getenv('ODOO_PROFILE')
+    # Profile OVERRIDES .env (--profile wins over .env file). An empty ODOO_PROFILE counts as unset;
+    # an explicit --profile "" (an unset shell variable) is a name like any other.
+    profile_name = profile if profile is not None else (os.getenv('ODOO_PROFILE') or None)
 
-    # A named profile must exist. Falling back to .env or the default profile would run the
-    # command against a different database than the one asked for.
-    # An explicit --profile "" (an unset shell variable) is a profile name too, never "the default".
-    if profile is not None or profile_name:  # an empty ODOO_PROFILE counts as unset, an empty flag does not
+    # A named profile must exist: falling back to .env or the default profile would run the command
+    # against a different database than the one asked for.
+    if profile_name is not None:
         known = get_profile_manager().list_profiles()
         if profile_name not in known:
             raise ProfileNotFoundError(profile_name, known)
