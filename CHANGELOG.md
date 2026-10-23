@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2026-10-23
+
+Two safety fixes. Both change behaviour on purpose.
+
+### Changed
+- **A readonly profile runs only read methods.** Without `--force`, every model method outside a
+  read allowlist (`read`, `search`, `search_read`, `search_count`, `fields_get`, `name_get`,
+  `name_search`, `read_group`, `check_access_rights`, ... -- see the README) is
+  refused before it is sent. Before, only `create`, `write`, `unlink` and `copy` were blocked, so a
+  module's own method that writes ran on a readonly profile. A custom method that only reads now
+  needs `--force`; the error message says so. `default_get` is not on the list (a default may draw a
+  sequence number). The check sits on the one request path, so a hand-built `object` payload is held
+  to it too.
+- **An unknown profile stops the run with exit code 2** (`error_type: profile_not_found`). Before,
+  `--profile NAME` or `ODOO_PROFILE=NAME` for a profile that does not exist silently fell back to a
+  `.env` or the default profile and ran against another database. `--profile ""` counts as a name.
+  `config` and `context` still run (they never connect); the client is not built from a second
+  configuration load, so `--profile` wins over `ODOO_PROFILE`.
+
+### Removed
+- `odoo_cli/client_xmlrpc_backup.py`, an unused copy of the old XML-RPC client that ignored `readonly`.
+
 ## [2.0.1] - 2025-03-04
 
 ### Fixed

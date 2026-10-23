@@ -175,6 +175,34 @@ class OdooClient:
         if not self.uid:
             self.connect()
 
+    def _check_readonly(self, payload: Dict[str, Any]) -> None:
+        """Refuse a model call outside :attr:`READ_METHODS` on a readonly profile (unless --force).
+
+        Checked on the one request path every model call takes, so a payload built by hand is held
+        to the same rule. ``common`` (login, version) always passes; of the ``db`` service only the
+        listing methods do; any other service or call shape is refused.
+        """
+        if not self.readonly or self._force_write:
+            return
+        params = payload.get("params") or {}
+        service, rpc = params.get("service"), params.get("method")
+        if service == "common":
+            return  # login, version
+        if service == "db":
+            # The database service creates, drops, duplicates and restores databases.
+            if rpc in self.READ_DB_METHODS:
+                return
+            method = f"db.{rpc}"
+        else:
+            args = params.get("args") or []
+            method = args[4] if service == "object" and rpc in ("execute", "execute_kw") and len(args) > 4 else rpc
+        if method not in self.READ_METHODS:
+            raise PermissionError(
+                f"Method '{method}' blocked: profile is configured as readonly and only read methods "
+                f"({', '.join(sorted(self.READ_METHODS))}) run without --force. If '{method}' only reads, "
+                f"pass --force deliberately; otherwise use a non-readonly profile."
+            )
+
     @retry_on_network_error(max_retries=3, delay=2.0)
     def _jsonrpc_call(self, payload: Dict[str, Any]) -> Any:
         """
@@ -190,6 +218,7 @@ class OdooClient:
             ValueError: If Odoo returns an error
             requests.RequestException: If network error after retries
         """
+        self._check_readonly(payload)
         response = self.session.post(
             f"{self.url}/jsonrpc",
             json=payload,
@@ -215,8 +244,20 @@ class OdooClient:
 
         return data.get("result")
 
-    # Methods that modify data - blocked in readonly mode
-    WRITE_METHODS = {'create', 'write', 'unlink', 'copy'}
+    # Methods a readonly profile may call without --force. Everything else is refused: a module's own
+    # method (``action_*``, ``button_*``, ``*_apply`` ...) writes as easily as ``write`` does, and a
+    # blocklist of the standard write methods let such a call through. ``default_get`` is left out on
+    # purpose: a default may draw from a sequence, which writes.
+    READ_METHODS = frozenset({
+        'read', 'search', 'search_read', 'search_count', 'search_fetch',
+        'fields_get', 'name_get', 'name_search', 'read_group',
+        'web_read', 'web_search_read', 'web_read_group',
+        'exists', 'get_metadata',
+        'check_access_rights', 'check_access_rule', 'has_access',
+        'get_views', 'fields_view_get', 'load_views',
+        'xmlid_to_res_id', '_xmlid_to_res_id', 'check_object_reference', 'context_get',
+    })
+    READ_DB_METHODS = frozenset({'list', 'db_exist', 'server_version', 'list_lang', 'list_countries'})
 
     def _execute(self, model: str, method: str, *args, context: Optional[Dict] = None, **kwargs) -> Any:
         """
@@ -233,16 +274,9 @@ class OdooClient:
             Result of the method execution
 
         Raises:
-            PermissionError: If readonly mode is enabled and method modifies data
+            PermissionError: If readonly mode is enabled and method is not a read method
         """
         self._ensure_connected()
-
-        # Block write operations in readonly mode (unless --force is used)
-        if self.readonly and method in self.WRITE_METHODS and not self._force_write:
-            raise PermissionError(
-                f"Write operation '{method}' blocked: profile is configured as readonly. "
-                f"Use --force to override or use a non-readonly profile."
-            )
 
         # Merge context with existing context (command context overrides)
         if context:
@@ -598,7 +632,10 @@ def get_odoo_client(
     # Import here to avoid circular dependency
     from odoo_cli.config import load_config
 
-    config = load_config()
+    # Read the configuration only for what the caller left out: the CLI passes everything, readonly
+    # included, from the profile it resolved, and a second load would resolve ODOO_PROFILE again,
+    # ignoring --profile. Without an explicit readonly the configuration decides it.
+    config = {} if all([url, db, username, password]) and readonly is not None else load_config()
 
     # Override with provided arguments
     url = url or config.get('url')

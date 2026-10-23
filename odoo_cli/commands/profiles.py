@@ -161,6 +161,7 @@ def test_profile(ctx: Optional[CliContext], profile_name: str, json_mode: bool):
     """Test connectivity for a profile."""
     if ctx:
         json_mode = json_mode or ctx.json_mode
+        ctx.require_profile()  # the group's --profile / ODOO_PROFILE must exist before anything connects
 
     pm = ProfileManager()
 
@@ -190,6 +191,7 @@ def test_profile(ctx: Optional[CliContext], profile_name: str, json_mode: bool):
             password=profile.password,
             timeout=profile.timeout,
             verify_ssl=profile.verify_ssl,
+            readonly=profile.readonly,
         )
 
         # Test with a simple call
