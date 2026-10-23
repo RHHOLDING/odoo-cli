@@ -26,20 +26,20 @@ Think of it as: **"A README for LLMs about YOUR Odoo setup"**
 companies:
   main:
     id: 1
-    name: "SOLARCRAFT GmbH"
-    purpose: "Solar products, European multi-language sales"
+    name: "Azure Interior"
+    purpose: "Office furniture, multi-language sales"
     currency: EUR
 
   subsidiary_1:
     id: 2
-    name: "AC TEC GmbH"
-    purpose: "Main operations, marketplace hub (Amazon, eBay)"
+    name: "Deco Addict"
+    purpose: "Main operations, online marketplaces"
     currency: EUR
 
   subsidiary_2:
     id: 3
-    name: "ANANDA GmbH"
-    purpose: "Import/export, dual-warehouse logistics"
+    name: "Gemini Furniture"
+    purpose: "Import/export, two warehouses"
     warehouses: [1, 2]
 ```
 
@@ -89,7 +89,7 @@ key_records:
 ### Example 3: Custom Fields & Modules
 ```yaml
 custom_modules:
-  actec_helpdesk_enh:
+  custom_helpdesk_enh:
     models:
       - helpdesk.ticket
       - helpdesk.team
@@ -99,7 +99,7 @@ custom_modules:
         - x_customer_priority: "VIP status (selection: normal/high/vip)"
         - x_sla_deadline: "Custom SLA deadline (datetime)"
 
-  actec_product_labels:
+  custom_product_labels:
     purpose: "Custom product labeling and barcode generation"
     dependencies: ["product", "stock"]
 
@@ -190,7 +190,7 @@ conventions:
 ```yaml
 # .odoo-context.yaml
 project:
-  name: "RH Holding Production"
+  name: "Example Company Production"
   odoo_version: "16.0"
   environment: "production"
   last_updated: "2025-11-21"
@@ -212,7 +212,7 @@ conventions: {...}
 ```json
 {
   "project": {
-    "name": "RH Holding Production",
+    "name": "Example Company Production",
     "odoo_version": "16.0"
   },
   "companies": {...},
@@ -230,8 +230,8 @@ conventions: {...}
 # RH Holding Odoo Context
 
 ## Companies
-- **SOLARCRAFT GmbH** (ID: 1) - Solar products, European sales
-- **AC TEC GmbH** (ID: 2) - Main operations, marketplaces
+- **Azure Interior** (ID: 1) - Office furniture, multi-language sales
+- **Deco Addict** (ID: 2) - Main operations, marketplaces
 
 ## Key Records
 ### Warehouses
@@ -280,7 +280,7 @@ odoo context show
   "context_loaded": true,
   "file_path": "/path/to/.odoo-context.yaml",
   "project": {
-    "name": "RH Holding Production",
+    "name": "Example Company Production",
     "companies": 4,
     "custom_modules": 12,
     "workflows": 3
@@ -331,15 +331,15 @@ odoo context init
     "file": "/path/to/.odoo-context.yaml",
     "summary": {
       "companies": [
-        {"id": 1, "name": "SOLARCRAFT GmbH"},
-        {"id": 2, "name": "AC TEC GmbH"}
+        {"id": 1, "name": "Azure Interior"},
+        {"id": 2, "name": "Deco Addict"}
       ],
       "key_warehouses": [
         {"id": 1, "name": "Main Warehouse Europe"}
       ],
       "custom_modules": [
-        "actec_helpdesk_enh",
-        "actec_product_labels"
+        "custom_helpdesk_enh",
+        "custom_product_labels"
       ],
       "workflows": {
         "sales_order_approval": "Orders >5000 EUR need approval"
@@ -437,40 +437,40 @@ odoo context validate .odoo-context.yaml --schema .odoo-context.schema.json
 # This file helps AI assistants understand your specific Odoo setup
 
 project:
-  name: "RH Holding Production"
+  name: "Example Company Production"
   odoo_version: "16.0"
   environment: "production"
   database: "your-instance-db-12345"
   url: "https://your-instance.odoo.com"
   last_updated: "2025-11-21"
-  maintainer: "andre@ananda.gmbh"
+  maintainer: "maintainer@example.com"
 
 companies:
-  solarcraft:
+  azure_interior:
     id: 1
-    name: "SOLARCRAFT GmbH"
-    purpose: "Solar products, European multi-language sales"
+    name: "Azure Interior"
+    purpose: "Office furniture, multi-language sales"
     currency: EUR
     country: DE
 
-  actec:
+  deco_addict:
     id: 2
-    name: "AC TEC GmbH"
-    purpose: "Main operations, marketplace hub (Amazon, eBay)"
+    name: "Deco Addict"
+    purpose: "Main operations, online marketplaces"
     currency: EUR
     country: DE
 
-  ananda:
+  gemini_furniture:
     id: 3
-    name: "ANANDA GmbH"
-    purpose: "Import/export, dual-warehouse logistics"
+    name: "Gemini Furniture"
+    purpose: "Import/export, two warehouses"
     currency: EUR
     warehouses: [1, 2]
 
-  hantech:
+  ready_mat:
     id: 4
-    name: "HANTECH GmbH"
-    purpose: "Technology focus, premium B2B products"
+    name: "Ready Mat"
+    purpose: "B2B products"
     currency: EUR
 
 key_records:
@@ -478,7 +478,7 @@ key_records:
     main_eu:
       id: 1
       name: "Main Warehouse Europe"
-      company_id: 3  # ANANDA
+      company_id: 3  # Gemini Furniture
       location_id: 8
 
     secondary_eu:
@@ -508,11 +508,11 @@ key_records:
 
     solar:
       id: 10
-      name: "Solar Equipment"
-      company_id: 1  # SOLARCRAFT specific
+      name: "Office Equipment"
+      company_id: 1  # Azure Interior specific
 
 custom_modules:
-  actec_helpdesk_enh:
+  custom_helpdesk_enh:
     purpose: "Enhanced helpdesk with SLA tracking"
     models:
       - helpdesk.ticket
@@ -530,7 +530,7 @@ custom_modules:
           type: datetime
           description: "Custom SLA deadline"
 
-  actec_product_labels:
+  custom_product_labels:
     purpose: "Custom product labeling and barcode generation"
     models:
       - product.label
@@ -580,13 +580,13 @@ integrations:
     module: "magento2_connector"
     website_id: 2
     stock_sync_warehouse: 1
-    company_id: 1  # SOLARCRAFT
+    company_id: 1  # Azure Interior
 
   sentry_monitoring:
     enabled: true
     environment: "production"
     dsn: "https://...@sentry.io/..."
-    note: "All errors auto-tracked at https://sentry.io/organizations/actec"
+    note: "All errors auto-tracked at https://sentry.io/organizations/example"
 
 conventions:
   product_naming:
@@ -663,12 +663,12 @@ security:
 
 ## LLM Usage Example
 
-**Scenario:** LLM wants to create a sale order for SOLARCRAFT
+**Scenario:** LLM wants to create a sale order for Azure Interior
 
 **Without Project Context:**
 ```
 LLM: What company should I use?
-User: SOLARCRAFT
+User: Azure Interior
 LLM: What's the company ID?
 User: 1
 LLM: What warehouse?
@@ -680,7 +680,7 @@ User: 1
 **With Project Context:**
 ```
 LLM reads .odoo-context.yaml
-→ Knows SOLARCRAFT = company_id 1
+→ Knows Azure Interior = company_id 1
 → Knows Main Warehouse = warehouse_id 1
 → Creates order directly with correct IDs
 ```
