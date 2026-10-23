@@ -66,6 +66,16 @@ class TestReadonlyGuard:
             client._jsonrpc_call(payload)
         assert calls == []
 
+    def test_the_db_service_only_lists(self):
+        client, calls = readonly_client()
+        drop = {"jsonrpc": "2.0", "method": "call", "id": 1,
+                "params": {"service": "db", "method": "drop", "args": ["master", "demo"]}}
+        with pytest.raises(PermissionError, match="db.drop"):
+            client._jsonrpc_call(drop)
+        client.session.post = lambda url, json=None, **kw: calls.append(json["params"]["method"]) or FakeResponse()
+        client._jsonrpc_call({**drop, "params": {"service": "db", "method": "list", "args": []}})
+        assert calls == ["list"]
+
     def test_read_methods_run(self):
         client, calls = readonly_client()
         client.search_read("res.partner", [], ["name"])
@@ -124,6 +134,13 @@ class TestUnknownProfile:
         with pytest.raises(ProfileNotFoundError, match="Unknown profile ''"):
             load_config(profile="")
 
+    def test_an_empty_profile_flag_beats_the_environment(self, profiles, monkeypatch):
+        monkeypatch.setenv("ODOO_PROFILE", "staging")
+        with pytest.raises(ProfileNotFoundError):
+            load_config(profile="")
+        monkeypatch.setenv("ODOO_PROFILE", "")
+        load_config()  # an empty variable is unset
+
     def test_a_known_profile_loads(self, profiles):
         assert load_config(profile="staging")["db"] == "demo_staging"
 
@@ -139,6 +156,7 @@ class TestUnknownProfile:
         assert listed.exit_code == 0, listed.output
         assert CliRunner().invoke(cli, ["--json", "exec", "-c", "result = 1"]).exit_code == 2
         assert CliRunner().invoke(cli, ["--json", "agent-info"]).exit_code == 2  # it connects
+        assert CliRunner().invoke(cli, ["--json", "config", "test", "staging"]).exit_code == 2
 
     def test_the_client_does_not_resolve_the_profile_again(self, monkeypatch):
         """--profile staging wins: ODOO_PROFILE=typo must not be read a second time."""
@@ -152,3 +170,11 @@ class TestUnknownProfile:
         client = get_odoo_client(url="https://example.com", db="demo", username="admin", password="x",
                                  readonly=True)
         assert client.readonly and client.db == "demo"
+
+    def test_explicit_credentials_without_readonly_take_it_from_the_configuration(self, monkeypatch):
+        monkeypatch.setattr(config_module, "load_config", lambda: {"readonly": True})
+        monkeypatch.setattr(OdooClient, "connect", lambda self: None)
+        from odoo_cli.client import get_odoo_client
+
+        client = get_odoo_client(url="https://example.com", db="demo", username="admin", password="x")
+        assert client.readonly

@@ -161,6 +161,13 @@ def test_profile(ctx: Optional[CliContext], profile_name: str, json_mode: bool):
     """Test connectivity for a profile."""
     if ctx:
         json_mode = json_mode or ctx.json_mode
+        error = ctx.config.get('_profile_error')
+        if error:  # the group's --profile / ODOO_PROFILE does not exist: connect nowhere
+            if json_mode:
+                output_json({"success": False, "error": str(error), "error_type": "profile_not_found"})
+            else:
+                click.echo(f"Error: {error}")
+            sys.exit(2)
 
     pm = ProfileManager()
 
@@ -190,6 +197,7 @@ def test_profile(ctx: Optional[CliContext], profile_name: str, json_mode: bool):
             password=profile.password,
             timeout=profile.timeout,
             verify_ssl=profile.verify_ssl,
+            readonly=profile.readonly,
         )
 
         # Test with a simple call

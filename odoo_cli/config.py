@@ -200,15 +200,15 @@ def load_config(
                 config.update(file_config)
 
     # Profile OVERRIDES .env (--profile wins over .env file)
-    profile_name = profile or os.getenv('ODOO_PROFILE')
+    profile_name = profile if profile is not None else os.getenv('ODOO_PROFILE')
 
     # A named profile must exist. Falling back to .env or the default profile would run the
     # command against a different database than the one asked for.
     # An explicit --profile "" (an unset shell variable) is a profile name too, never "the default".
-    if profile_name or profile == "":
+    if profile is not None or profile_name:  # an empty ODOO_PROFILE counts as unset, an empty flag does not
         known = get_profile_manager().list_profiles()
         if profile_name not in known:
-            raise ProfileNotFoundError(profile_name or "", known)
+            raise ProfileNotFoundError(profile_name, known)
 
     # Always try to load a profile (get_config will auto-select default if profile_name is None)
     try:
