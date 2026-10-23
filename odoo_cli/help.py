@@ -12,7 +12,7 @@ from typing import Dict, Any
 def get_llm_help() -> Dict[str, Any]:
     """Generate LLM-optimized help as JSON."""
     return {
-        "cli_version": "2.0.1",
+        "cli_version": "2.1.0",
         "architecture": "exec-only",
         "protocol": "JSON-RPC",
         "timestamp": datetime.now().isoformat(),

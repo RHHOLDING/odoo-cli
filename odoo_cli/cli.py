@@ -7,7 +7,7 @@ import sys
 import os
 from typing import Optional
 from odoo_cli.models.context import CliContext
-from odoo_cli.config import load_config, validate_config
+from odoo_cli.config import ProfileNotFoundError, load_config, validate_config
 from odoo_cli.help import print_llm_help
 from rich.console import Console
 
@@ -78,6 +78,18 @@ def cli(ctx, json, llm_help, force, profile, config, url, db, username, password
             timeout=timeout,
             verify_ssl=not no_verify_ssl
         )
+    except ProfileNotFoundError as e:
+        if json_mode:
+            import json as json_lib
+            click.echo(json_lib.dumps({
+                'success': False,
+                'error': str(e),
+                'error_type': 'profile_not_found',
+                'suggestion': 'Use one of the defined profiles (odoo-cli config list), or unset ODOO_PROFILE',
+            }))
+        else:
+            console.print(f"[red]✗ Configuration error:[/red] {e}")
+        sys.exit(2)
     except Exception as e:
         if json_mode:
             error_response = {

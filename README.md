@@ -6,7 +6,7 @@
 
 Execute Python code against Odoo. Built for LLM agents.
 
-**v2.0.1** - exec-only architecture. All Odoo operations through Python code.
+**v2.1.0** - exec-only architecture. All Odoo operations through Python code.
 
 ```bash
 pipx install git+https://github.com/RHHOLDING/odoo-cli.git
@@ -72,7 +72,7 @@ client.search_count(model, domain)                 # Returns count
 client.fields_get(model)                           # Returns field definitions
 client.get_models()                                # Returns all model names
 
-# Write methods (blocked if profile is readonly)
+# Write methods (a readonly profile runs only read methods, see below)
 client.create(model, values)                       # Returns new ID
 client.write(model, ids, values)                   # Returns True
 client.unlink(model, ids)                          # Returns True
@@ -126,7 +126,7 @@ profiles:
     db: prod-db
     username: admin@example.com
     password: secret
-    readonly: true    # Blocks write operations
+    readonly: true    # Only read methods run without --force
     protected: true   # Blocks CLI modifications
 ```
 
@@ -137,6 +137,19 @@ odoo-cli --profile production exec -c "result = client.search_count('res.partner
 # Override readonly protection with global --force flag
 odoo-cli --force --profile production exec -c "result = client.create('res.partner', {'name': 'Test'})" --json
 ```
+
+**Readonly means read-only.** On a `readonly: true` profile every model method outside a read
+allowlist is refused unless `--force` is given: `read`, `search`, `search_read`, `search_count`,
+`search_fetch`, `fields_get`, `name_get`, `name_search`, `read_group`, `web_read`,
+`web_search_read`, `web_read_group`, `default_get`, `exists`, `get_metadata`,
+`check_access_rights`, `check_access_rule`, `has_access`, `get_views`, `fields_view_get`,
+`load_views`, `xmlid_to_res_id`, `check_object_reference`, `context_get`. A module's own method
+(`action_*`, `button_*`, custom methods) is refused even if it only reads -- pass `--force`
+deliberately for it.
+
+**An unknown profile stops the run.** `--profile NAME` or `ODOO_PROFILE=NAME` for a profile that is
+not defined exits with code 2 (`error_type: profile_not_found`) before anything connects; it never
+falls back to a `.env` or the default profile.
 
 ### Profile Management
 

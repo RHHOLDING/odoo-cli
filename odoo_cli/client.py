@@ -215,8 +215,18 @@ class OdooClient:
 
         return data.get("result")
 
-    # Methods that modify data - blocked in readonly mode
-    WRITE_METHODS = {'create', 'write', 'unlink', 'copy'}
+    # Methods a readonly profile may call without --force. Everything else is refused: a module's own
+    # method (``action_*``, ``button_*``, ``*_apply`` ...) writes as easily as ``write`` does, and a
+    # blocklist of the standard write methods let such a call through.
+    READ_METHODS = frozenset({
+        'read', 'search', 'search_read', 'search_count', 'search_fetch',
+        'fields_get', 'name_get', 'name_search', 'read_group',
+        'web_read', 'web_search_read', 'web_read_group',
+        'default_get', 'exists', 'get_metadata',
+        'check_access_rights', 'check_access_rule', 'has_access',
+        'get_views', 'fields_view_get', 'load_views',
+        'xmlid_to_res_id', '_xmlid_to_res_id', 'check_object_reference', 'context_get',
+    })
 
     def _execute(self, model: str, method: str, *args, context: Optional[Dict] = None, **kwargs) -> Any:
         """
@@ -233,15 +243,16 @@ class OdooClient:
             Result of the method execution
 
         Raises:
-            PermissionError: If readonly mode is enabled and method modifies data
+            PermissionError: If readonly mode is enabled and method is not a read method
         """
         self._ensure_connected()
 
-        # Block write operations in readonly mode (unless --force is used)
-        if self.readonly and method in self.WRITE_METHODS and not self._force_write:
+        # A readonly profile calls only read methods unless --force is used
+        if self.readonly and method not in self.READ_METHODS and not self._force_write:
             raise PermissionError(
-                f"Write operation '{method}' blocked: profile is configured as readonly. "
-                f"Use --force to override or use a non-readonly profile."
+                f"Method '{method}' blocked: profile is configured as readonly and only read methods "
+                f"({', '.join(sorted(self.READ_METHODS))}) run without --force. If '{method}' only reads, "
+                f"pass --force deliberately; otherwise use a non-readonly profile."
             )
 
         # Merge context with existing context (command context overrides)

@@ -29,6 +29,18 @@ from dotenv import load_dotenv
 _profile_manager = None
 
 
+class ProfileNotFoundError(ValueError):
+    """A profile was named (--profile or ODOO_PROFILE) that the profile config does not define."""
+
+    def __init__(self, name: str, known: List[str]):
+        self.name = name
+        self.known = known
+        super().__init__(
+            f"Unknown profile '{name}'. Defined profiles: {', '.join(known) or '(none)'}. "
+            f"Nothing was run: an unknown profile never falls back to another configuration."
+        )
+
+
 # Maximum levels to search up for .env files
 MAX_PARENT_SEARCH_LEVELS = 5
 
@@ -189,6 +201,13 @@ def load_config(
 
     # Profile OVERRIDES .env (--profile wins over .env file)
     profile_name = profile or os.getenv('ODOO_PROFILE')
+
+    # A named profile must exist. Falling back to .env or the default profile would run the
+    # command against a different database than the one asked for.
+    if profile_name:
+        known = get_profile_manager().list_profiles()
+        if profile_name not in known:
+            raise ProfileNotFoundError(profile_name, known)
 
     # Always try to load a profile (get_config will auto-select default if profile_name is None)
     try:

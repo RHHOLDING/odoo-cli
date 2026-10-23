@@ -54,7 +54,7 @@ client.search_count(model, domain)                 # Returns count
 client.fields_get(model)                           # Returns field definitions
 client.get_models()                                # Returns all model names
 
-# Write methods (blocked if profile is readonly)
+# Write methods (a readonly profile runs only read methods, see below)
 client.create(model, values)                       # Returns new ID
 client.write(model, ids, values)                   # Returns True
 client.unlink(model, ids)                          # Returns True
@@ -128,13 +128,17 @@ The tool returns structured errors:
 ```json
 {
   "success": false,
-  "error": "Write operation 'create' blocked: profile is configured as readonly.",
+  "error": "Method 'create' blocked: profile is configured as readonly and only read methods (...) run without --force.",
   "error_type": "execution"
 }
 ```
 
 **Common errors:**
-- `readonly` → Use staging/dev profile for writes, or use `--force`
+- `readonly` → A readonly profile runs only read methods (`read`, `search_read`, `search_count`,
+  `read_group`, `fields_get`, ...); any other method, a module's own included, needs a writable
+  profile or a deliberate `--force`
+- `profile_not_found` (exit 2) → The named profile does not exist; nothing ran. Pick one from
+  `odoo-cli config list` or unset `ODOO_PROFILE`
 - `deprecated_command` → Use exec instead, error shows migration
 - `connection` → Check URL/credentials
 - `execution` → Fix Python code
