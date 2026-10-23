@@ -14,11 +14,22 @@ from odoo_cli.client import OdooClient
 from odoo_cli.config import ProfileNotFoundError, load_config
 
 
+class FakeResponse:
+    def json(self):
+        return {"result": []}
+
+
 def readonly_client(readonly=True):
+    """A connected client whose HTTP session records the model method of every request it sends."""
     client = OdooClient(url="https://example.com", db="demo", username="admin", password="x", readonly=readonly)
     client.uid = 2  # connected
     calls = []
-    client._jsonrpc_call = lambda payload: calls.append(payload["params"]["args"][4]) or []
+
+    def post(url, json=None, **kwargs):
+        calls.append(json["params"]["args"][4])
+        return FakeResponse()
+
+    client.session.post = post
     return client, calls
 
 
@@ -38,6 +49,21 @@ class TestReadonlyGuard:
         for method in ("create", "write", "unlink", "copy"):
             with pytest.raises(PermissionError):
                 client.execute("res.partner", method, [1])
+        assert calls == []
+
+    def test_default_get_is_refused_it_may_draw_a_sequence_number(self):
+        client, calls = readonly_client()
+        with pytest.raises(PermissionError, match="default_get"):
+            client.execute("stock.lot", "default_get", ["name"])
+        assert calls == []
+
+    def test_a_hand_built_payload_is_held_to_the_same_rule(self):
+        client, calls = readonly_client()
+        payload = {"jsonrpc": "2.0", "method": "call", "id": 1,
+                   "params": {"service": "object", "method": "execute_kw",
+                              "args": ["demo", 2, "x", "res.partner", "write", [[1], {"name": "y"}], {}]}}
+        with pytest.raises(PermissionError, match="'write'"):
+            client._jsonrpc_call(payload)
         assert calls == []
 
     def test_read_methods_run(self):
@@ -94,6 +120,10 @@ class TestUnknownProfile:
         with pytest.raises(ProfileNotFoundError):
             load_config()
 
+    def test_an_empty_profile_flag_raises(self, profiles):
+        with pytest.raises(ProfileNotFoundError, match="Unknown profile ''"):
+            load_config(profile="")
+
     def test_a_known_profile_loads(self, profiles):
         assert load_config(profile="staging")["db"] == "demo_staging"
 
@@ -102,3 +132,23 @@ class TestUnknownProfile:
         assert result.exit_code == 2
         answer = json.loads(result.output)
         assert answer["success"] is False and answer["error_type"] == "profile_not_found"
+
+    def test_offline_commands_still_run_with_an_unknown_env_profile(self, profiles, monkeypatch):
+        monkeypatch.setenv("ODOO_PROFILE", "prod")
+        listed = CliRunner().invoke(cli, ["--json", "config", "list"])
+        assert listed.exit_code == 0, listed.output
+        assert CliRunner().invoke(cli, ["--json", "exec", "-c", "result = 1"]).exit_code == 2
+        assert CliRunner().invoke(cli, ["--json", "agent-info"]).exit_code == 2  # it connects
+
+    def test_the_client_does_not_resolve_the_profile_again(self, monkeypatch):
+        """--profile staging wins: ODOO_PROFILE=typo must not be read a second time."""
+        def no_second_load(*args, **kwargs):
+            raise AssertionError("configuration loaded again")
+
+        monkeypatch.setattr(config_module, "load_config", no_second_load)
+        monkeypatch.setattr(OdooClient, "connect", lambda self: None)
+        from odoo_cli.client import get_odoo_client
+
+        client = get_odoo_client(url="https://example.com", db="demo", username="admin", password="x",
+                                 readonly=True)
+        assert client.readonly and client.db == "demo"

@@ -204,10 +204,11 @@ def load_config(
 
     # A named profile must exist. Falling back to .env or the default profile would run the
     # command against a different database than the one asked for.
-    if profile_name:
+    # An explicit --profile "" (an unset shell variable) is a profile name too, never "the default".
+    if profile_name or profile == "":
         known = get_profile_manager().list_profiles()
         if profile_name not in known:
-            raise ProfileNotFoundError(profile_name, known)
+            raise ProfileNotFoundError(profile_name or "", known)
 
     # Always try to load a profile (get_config will auto-select default if profile_name is None)
     try:

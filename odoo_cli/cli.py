@@ -11,6 +11,25 @@ from odoo_cli.config import ProfileNotFoundError, load_config, validate_config
 from odoo_cli.help import print_llm_help
 from rich.console import Console
 
+# Commands that never connect: they still run when the named profile does not exist (to add it,
+# list the profiles, read the local context), and the error waits for the first use of the client.
+OFFLINE_COMMANDS = frozenset({'config', 'profiles', 'context'})
+
+
+def _profile_not_found(error, json_mode, console):
+    """Stop before connecting: exit 2, never another configuration."""
+    if json_mode:
+        import json as json_lib
+        click.echo(json_lib.dumps({
+            'success': False,
+            'error': str(error),
+            'error_type': 'profile_not_found',
+            'suggestion': 'Use one of the defined profiles (odoo-cli config list), or unset ODOO_PROFILE',
+        }))
+    else:
+        console.print(f"[red]✗ Configuration error:[/red] {error}")
+    sys.exit(2)
+
 
 @click.group(invoke_without_command=True)
 @click.option('--json', is_flag=True, help='Output pure JSON to stdout')
@@ -79,17 +98,12 @@ def cli(ctx, json, llm_help, force, profile, config, url, db, username, password
             verify_ssl=not no_verify_ssl
         )
     except ProfileNotFoundError as e:
-        if json_mode:
-            import json as json_lib
-            click.echo(json_lib.dumps({
-                'success': False,
-                'error': str(e),
-                'error_type': 'profile_not_found',
-                'suggestion': 'Use one of the defined profiles (odoo-cli config list), or unset ODOO_PROFILE',
-            }))
+        if ctx.invoked_subcommand in OFFLINE_COMMANDS:
+            # Managing profiles and reading the local context need no connection; the error waits
+            # for the first use of the client.
+            config_dict = {'_profile_error': e}
         else:
-            console.print(f"[red]✗ Configuration error:[/red] {e}")
-        sys.exit(2)
+            _profile_not_found(e, json_mode, console)
     except Exception as e:
         if json_mode:
             error_response = {

@@ -22,6 +22,8 @@ class CliContext:
     def client(self) -> OdooClient:
         """Lazy-load and cache the Odoo client"""
         if self._client is None:
+            if self.config.get('_profile_error'):
+                raise self.config['_profile_error']
             from odoo_cli.client import get_odoo_client
             self._client = get_odoo_client(
                 url=self.config.get('url'),

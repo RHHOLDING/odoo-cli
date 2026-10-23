@@ -141,7 +141,7 @@ odoo-cli --force --profile production exec -c "result = client.create('res.partn
 **Readonly means read-only.** On a `readonly: true` profile every model method outside a read
 allowlist is refused unless `--force` is given: `read`, `search`, `search_read`, `search_count`,
 `search_fetch`, `fields_get`, `name_get`, `name_search`, `read_group`, `web_read`,
-`web_search_read`, `web_read_group`, `default_get`, `exists`, `get_metadata`,
+`web_search_read`, `web_read_group`, `exists`, `get_metadata`,
 `check_access_rights`, `check_access_rule`, `has_access`, `get_views`, `fields_view_get`,
 `load_views`, `xmlid_to_res_id`, `check_object_reference`, `context_get`. A module's own method
 (`action_*`, `button_*`, custom methods) is refused even if it only reads -- pass `--force`
@@ -149,7 +149,8 @@ deliberately for it.
 
 **An unknown profile stops the run.** `--profile NAME` or `ODOO_PROFILE=NAME` for a profile that is
 not defined exits with code 2 (`error_type: profile_not_found`) before anything connects; it never
-falls back to a `.env` or the default profile.
+falls back to a `.env` or the default profile. `config` and `context` still run, so the profile
+can be added.
 
 ### Profile Management
 
