@@ -257,7 +257,7 @@ Complete migration from XML-RPC to JSON-RPC protocol. This is a **replacement**,
 
 ### Integration Tests (Real Odoo v16 Instance)
 - [ ] T033 [P] Integration test: All CRUD operations in tests/integration/test_jsonrpc_crud.py
-  - Test against: `https://rhholding-ac-mail-deploy-25766690.dev.odoo.com`
+  - Test against: `https://your-instance-staging.dev.odoo.com`
   - Test: search() returns IDs
   - Test: read() returns records
   - Test: search_read() returns records

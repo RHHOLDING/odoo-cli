@@ -137,10 +137,10 @@ odoo --help                     # Show all available commands
 
 **Example .env:**
 ```bash
-ODOO_URL=https://rhholding-ac-mail-deploy-25766690.dev.odoo.com
-ODOO_DB=rhholding-ac-mail-deploy-25766690
-ODOO_USERNAME=mcp@ananda.gmbh
-ODOO_PASSWORD=mcp88
+ODOO_URL=https://your-instance.odoo.com
+ODOO_DB=your-database
+ODOO_USERNAME=admin@example.com
+ODOO_PASSWORD=your-password
 ```
 
 ### Output Formatting (Rich)
