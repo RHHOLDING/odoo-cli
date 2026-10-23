@@ -12,7 +12,7 @@ Two safety fixes. Both change behaviour on purpose.
 ### Changed
 - **A readonly profile runs only read methods.** Without `--force`, every model method outside a
   read allowlist (`read`, `search`, `search_read`, `search_count`, `fields_get`, `name_get`,
-  `name_search`, `read_group`, `default_get`, `check_access_rights`, ... -- see the README) is
+  `name_search`, `read_group`, `check_access_rights`, ... -- see the README) is
   refused before it is sent. Before, only `create`, `write`, `unlink` and `copy` were blocked, so a
   module's own method that writes ran on a readonly profile. A custom method that only reads now
   needs `--force`; the error message says so. `default_get` is not on the list (a default may draw a
