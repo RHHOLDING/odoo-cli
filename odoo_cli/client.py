@@ -6,7 +6,9 @@ offering 75% higher throughput and 43% faster response times compared to XML-RPC
 
 Features:
 - Persistent HTTP session with connection pooling
-- Automatic retry logic for network errors (2s delay, max 3 retries)
+- Retry on connection errors only (2s delay, max 3 attempts); a timeout is not retried, the
+  server keeps running the call
+- Refuses known heavy scans on production unless overridden
 - Response caching for frequently accessed data
 - Configurable timeout and SSL verification
 """
@@ -25,9 +27,70 @@ import requests
 logger = logging.getLogger(__name__)
 
 
+class ServerStillRunningTimeout(TimeoutError):
+    """No answer within the client timeout. The server is still running the call."""
+
+
+class HeavyQueryRefused(PermissionError):
+    """A search known to scan a whole large table on production, refused before it is sent."""
+
+
+# Set to 1 to run a refused heavy query on purpose (same as --allow-heavy-query).
+ALLOW_HEAVY_ENV = 'ODOO_CLI_ALLOW_HEAVY_QUERY'
+# Model methods whose first positional argument (or ``domain`` keyword) is a search domain.
+DOMAIN_METHODS = frozenset({
+    'search', 'search_read', 'search_count', 'search_fetch', 'read_group',
+    'web_search_read', 'web_read_group',
+})
+LIKE_OPERATORS = frozenset({'like', 'ilike', '=like', '=ilike', 'not like', 'not ilike'})
+
+
+def _domain_leaves(domain: Any) -> List[tuple]:
+    """The ``(field, operator, value)`` leaves of a domain (operators ``&``, ``|``, ``!`` skipped)."""
+    leaves = []
+    for item in domain or []:
+        if isinstance(item, (list, tuple)) and len(item) == 3 and isinstance(item[0], str):
+            leaves.append((item[0].split('.')[0], str(item[1]).lower(), item[2]))
+    return leaves
+
+
+def heavy_query_reason(model: str, method: str, args: tuple, kwargs: Dict[str, Any]) -> Optional[str]:
+    """Why this call would scan a whole large table on production, or None.
+
+    Two patterns took 30-180 s each on production (pg_slow_queries, November 2026) and, with the
+    old retry on timeout, held up to three of its eight HTTP workers at once:
+
+    - ``queue.job`` searched by ``func_string`` (like/ilike) without a ``date_created`` window and a
+      ``model_name`` or ``method_name`` filter;
+    - ``mail.message`` searched by ``body`` (like/ilike) without ``res_id`` (``=`` or ``in``).
+    """
+    if method not in DOMAIN_METHODS:
+        return None
+    domain = kwargs.get('domain')
+    if domain is None and args and isinstance(args[0], (list, tuple)):
+        domain = args[0]
+    leaves = _domain_leaves(domain)
+    fields = {field for field, _op, _value in leaves}
+    liked = {field for field, op, _value in leaves if op in LIKE_OPERATORS}
+    if model == 'queue.job' and 'func_string' in liked:
+        dated = any(field == 'date_created' and op in ('>', '>=', '=') for field, op, _value in leaves)
+        narrowed = bool(fields & {'model_name', 'method_name'})
+        if not (dated and narrowed):
+            return ("queue.job searched by func_string (like/ilike) without a date_created window "
+                    "('>=' a recent date) and a model_name or method_name filter")
+    if model == 'mail.message' and 'body' in liked:
+        if not any(field == 'res_id' and op in ('=', 'in') for field, op, _value in leaves):
+            return "mail.message searched by body (like/ilike) without res_id ('=' or 'in')"
+    return None
+
+
 def retry_on_network_error(max_retries: int = 3, delay: float = 2.0):
     """
-    Decorator to retry a function on network errors.
+    Decorator to retry a function on connection errors.
+
+    Only a connection that could not be made or broke is retried. A read timeout is not: the
+    request reached the server, which keeps running it (and holds a worker) until it finishes, so a
+    retry would run the same work again next to it.
 
     Args:
         max_retries: Maximum number of retry attempts
@@ -41,8 +104,7 @@ def retry_on_network_error(max_retries: int = 3, delay: float = 2.0):
             for attempt in range(max_retries):
                 try:
                     return func(*args, **kwargs)
-                except (requests.exceptions.ConnectionError,
-                        requests.exceptions.Timeout) as e:
+                except requests.exceptions.ConnectionError as e:
                     last_exception = e
                     if attempt < max_retries - 1:
                         logger.warning(
@@ -106,6 +168,8 @@ class OdooClient:
         self.verify_ssl = verify_ssl
         self.readonly = readonly
         self._force_write = False  # Temporary override for --force flag
+        # Run a heavy query refused on production anyway (--allow-heavy-query or the environment)
+        self.allow_heavy_query = os.environ.get(ALLOW_HEAVY_ENV, '').lower() in ('1', 'true', 'yes')
 
         # Create persistent session with connection pooling
         self.session = requests.Session()
@@ -203,6 +267,28 @@ class OdooClient:
                 f"pass --force deliberately; otherwise use a non-readonly profile."
             )
 
+    def _is_production(self) -> bool:
+        """Production for the heavy-query guard: a readonly profile or a production database."""
+        return bool(self.readonly) or 'production' in (self.db or '').lower()
+
+    def _check_heavy_query(self, payload: Dict[str, Any]) -> None:
+        """Refuse a known whole-table scan on production unless allowed (see heavy_query_reason)."""
+        if self.allow_heavy_query or not self._is_production():
+            return
+        params = payload.get("params") or {}
+        args = params.get("args") or []
+        if params.get("service") != "object" or params.get("method") != "execute_kw" or len(args) < 5:
+            return
+        call_args = args[5] if len(args) > 5 and isinstance(args[5], (list, tuple)) else []
+        call_kwargs = args[6] if len(args) > 6 and isinstance(args[6], dict) else {}
+        reason = heavy_query_reason(args[3], args[4], tuple(call_args), call_kwargs)
+        if reason:
+            raise HeavyQueryRefused(
+                f"Refused on production: {reason}. Such a search scans the whole table (30-180 s) and "
+                f"holds a server worker meanwhile. Narrow it, or run it deliberately outside 05-10 UTC "
+                f"with --allow-heavy-query (or {ALLOW_HEAVY_ENV}=1)."
+            )
+
     @retry_on_network_error(max_retries=3, delay=2.0)
     def _jsonrpc_call(self, payload: Dict[str, Any]) -> Any:
         """
@@ -219,12 +305,20 @@ class OdooClient:
             requests.RequestException: If network error after retries
         """
         self._check_readonly(payload)
-        response = self.session.post(
-            f"{self.url}/jsonrpc",
-            json=payload,
-            timeout=self.timeout,
-            verify=self.verify_ssl
-        )
+        self._check_heavy_query(payload)
+        try:
+            response = self.session.post(
+                f"{self.url}/jsonrpc",
+                json=payload,
+                timeout=self.timeout,
+                verify=self.verify_ssl
+            )
+        except requests.exceptions.ReadTimeout as e:
+            raise ServerStillRunningTimeout(
+                f"No answer from {self.hostname} within {self.timeout}s. The server keeps running this "
+                f"call until it finishes and holds a worker meanwhile; it was not sent again. Do not "
+                f"resend it at once: narrow the query (date window, ids) or raise --timeout."
+            ) from e
 
         data = response.json()
 

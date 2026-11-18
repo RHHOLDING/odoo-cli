@@ -41,6 +41,21 @@ odoo-cli config list
 | `staging` | Odoo.sh branch testing | None |
 | `production` | Live data (READ-ONLY) | readonly + protected |
 
+## Production load: heavy searches
+
+Production has eight HTTP workers. A search that scans a whole large table holds one for 30-180 s;
+a warehouse scanner then waits for a free worker (18.11.2026: waits of a minute and more).
+
+- **queue.job:** never by `func_string` like/ilike without a `date_created` window (`>=` a recent
+  date) **and** a `model_name` or `method_name` filter.
+- **mail.message:** never by `body` like/ilike without `res_id` (`=` or `in`): find the records
+  first (by name or reference), then read their messages.
+- **No heavy searches between 05 and 10 UTC** (picking hours).
+- On production the client refuses the first two before sending them (`HeavyQueryRefused`). The
+  global flag `--allow-heavy-query` (or `ODOO_CLI_ALLOW_HEAVY_QUERY=1`) runs one on purpose.
+- A timeout is not retried (`ServerStillRunningTimeout`): the server is still running the call. Do
+  not resend it at once; narrow it or raise `--timeout`.
+
 ## Client API
 
 The `exec` command provides a pre-authenticated `client` object:

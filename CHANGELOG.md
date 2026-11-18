@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0] - 2026-11-18
+
+Production showed waits of a minute and more for warehouse users (barcode app) while each request
+took 1-3 s on the server: its eight HTTP workers were held by our own long searches. Both changes
+change behaviour on purpose.
+
+### Changed
+- **A read timeout is no longer retried.** The request reached the server, which keeps running it
+  and holds a worker until it finishes. With the production timeout of 120 s, a 140-180 s search was
+  sent up to three times, two minutes apart, and held three workers at once (pg_slow_queries,
+  17./18.11.2026). It now fails at once with `ServerStillRunningTimeout`, which says so. A
+  connection error (including a connect timeout, which never reached the server) is still retried.
+- **Known whole-table scans are refused on production** (a readonly profile or a database named
+  `*production*`) before they are sent, with `HeavyQueryRefused`:
+  - `queue.job` searched by `func_string` (like/ilike) without a `date_created` window and a
+    `model_name` or `method_name` filter;
+  - `mail.message` searched by `body` (like/ilike) without `res_id` (`=` or `in`).
+  Run one deliberately with the global flag `--allow-heavy-query` or `ODOO_CLI_ALLOW_HEAVY_QUERY=1`,
+  outside 05-10 UTC.
+
 ## [2.1.0] - 2026-10-23
 
 Two safety fixes. Both change behaviour on purpose.

@@ -138,6 +138,12 @@ odoo-cli --profile production exec -c "result = client.search_count('res.partner
 odoo-cli --force --profile production exec -c "result = client.create('res.partner', {'name': 'Test'})" --json
 ```
 
+**Heavy searches on production.** A readonly profile (or a `*production*` database) refuses two
+whole-table scans before sending them: `queue.job` by `func_string` like/ilike without a
+`date_created` window and a `model_name`/`method_name` filter, and `mail.message` by `body`
+like/ilike without `res_id`. `--allow-heavy-query` (or `ODOO_CLI_ALLOW_HEAVY_QUERY=1`) runs one on
+purpose, outside 05-10 UTC. A read timeout is not retried: the server keeps running the call.
+
 **Readonly means read-only.** On a `readonly: true` profile every model method outside a read
 allowlist is refused unless `--force` is given: `read`, `search`, `search_read`, `search_count`,
 `search_fetch`, `fields_get`, `name_get`, `name_search`, `read_group`, `web_read`,
