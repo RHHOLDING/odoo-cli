@@ -70,7 +70,7 @@ def _parse_domain(domain: List) -> Any:
         if item == '!':
             return ('!', node())
         if _is_leaf(item):
-            return ('leaf', item[0].split('.')[0], str(item[1]).lower(), item[2])
+            return ('leaf', item[0], str(item[1]).lower(), item[2])
         return ('true',)  # TRUE_LEAF / FALSE_LEAF and unknown terms restrict nothing we rely on
 
     terms = []
@@ -91,7 +91,11 @@ def _clauses(tree: Any, negated: bool = False) -> Optional[List[List[tuple]]]:
     if kind == 'true':
         return [[]]
     if kind == 'leaf':
-        return [[(tree[1], tree[2], tree[3], negated)]]
+        field, op, value = tree[1], tree[2], tree[3]
+        if negated and op in ('!=', 'not in'):
+            # '!' ('res_id', '!=', 7) is res_id = 7: a positive restriction
+            op, negated = ('=' if op == '!=' else 'in'), False
+        return [[(field, op, value, negated)]]
     if kind == '!':
         return _clauses(tree[1], not negated)
     left, right = _clauses(tree[1], negated), _clauses(tree[2], negated)
@@ -130,7 +134,7 @@ def _nested_like(domain: Any, fields: set, inside: bool = False) -> bool:
             if op in NESTED_OPERATORS and isinstance(item[2], (list, tuple)):
                 if _nested_like(item[2], fields, inside=True):
                     return True
-            elif inside and op in LIKE_OPERATORS and item[0].split('.')[0] in fields:
+            elif inside and op in LIKE_OPERATORS and item[0].split('.')[-1] in fields:
                 return True
     return False
 
@@ -164,11 +168,17 @@ def heavy_query_reason(model: str, method: str, args: tuple, kwargs: Dict[str, A
     text_field = 'func_string' if model == 'queue.job' else 'body'
     if _nested_like(domain, {'body', 'func_string'}):
         return f"{model} searched by a text field inside an any/not any sub-domain"
+    def text_search(field: str, op: str) -> bool:
+        # also through a relation: parent_id.body joins the same large table again
+        return op in LIKE_OPERATORS and field.split('.')[-1] == text_field
+
     clauses = _clauses(_parse_domain(domain))
-    if clauses is None:
-        clauses = [[(text_field, 'ilike', '', False)]]  # too complex to prove narrow
+    if clauses is None:  # too complex to prove narrow: refused only if it searches the text at all
+        if any(_is_leaf(item) and text_search(item[0], str(item[1]).lower()) for item in domain or []):
+            return f"{model} searched by {text_field} with a domain too complex to check"
+        return None
     for clause in clauses:
-        if not any(field == text_field and op in LIKE_OPERATORS for field, op, _v, _n in clause):
+        if not any(text_search(field, op) for field, op, _v, _n in clause):
             continue
         if _pins_records(clause):
             continue

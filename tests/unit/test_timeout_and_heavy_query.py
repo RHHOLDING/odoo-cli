@@ -179,3 +179,22 @@ class TestHeavyQueryGuard:
         monkeypatch.setattr(ctx, "require_profile", lambda: None, raising=False)
         assert ctx.client.allow_heavy_query is True
 
+    def test_a_dotted_path_to_the_text_field_counts(self, monkeypatch):
+        monkeypatch.delenv(ALLOW_HEAVY_ENV, raising=False)
+        client, calls = make_client(readonly=True)
+        with pytest.raises(HeavyQueryRefused):
+            client.search_read("mail.message", [("parent_id.body", "ilike", "x")])
+        with pytest.raises(HeavyQueryRefused):
+            client.search_read("mail.message", [("parent_id", "any", [("parent_id.body", "ilike", "x")])])
+        assert calls == []
+
+    def test_a_negated_inequality_restricts_and_a_large_domain_without_text_passes(self, monkeypatch):
+        monkeypatch.delenv(ALLOW_HEAVY_ENV, raising=False)
+        client, calls = make_client(readonly=True)
+        client.search_read("mail.message", [("body", "ilike", "x"), "!", ("res_id", "!=", 7)])
+        big = []
+        for i in range(9):
+            big += ["|", ("subject", "ilike", str(i)), ("record_name", "ilike", str(i))]
+        client.search_read("mail.message", big)
+        assert len(calls) == 2
+
