@@ -198,3 +198,12 @@ class TestHeavyQueryGuard:
         client.search_read("mail.message", big)
         assert len(calls) == 2
 
+    def test_a_very_long_domain_does_not_crash(self, monkeypatch):
+        monkeypatch.delenv(ALLOW_HEAVY_ENV, raising=False)
+        client, calls = make_client(readonly=True)
+        client.search_read("mail.message", ["&"] * 1199 + [("res_id", "!=", i) for i in range(1200)])
+        with pytest.raises(HeavyQueryRefused):
+            client.search_read("mail.message", ["&"] * 1199 + [("res_id", "!=", i) for i in range(1199)]
+                               + [("body", "ilike", "x")])
+        assert len(calls) == 1
+

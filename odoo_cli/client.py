@@ -172,7 +172,10 @@ def heavy_query_reason(model: str, method: str, args: tuple, kwargs: Dict[str, A
         # also through a relation: parent_id.body joins the same large table again
         return op in LIKE_OPERATORS and field.split('.')[-1] == text_field
 
-    clauses = _clauses(_parse_domain(domain))
+    try:
+        clauses = _clauses(_parse_domain(domain))
+    except RecursionError:  # a very long domain: handled like one too large to expand
+        clauses = None
     if clauses is None:  # too complex to prove narrow: refused only if it searches the text at all
         if any(_is_leaf(item) and text_search(item[0], str(item[1]).lower()) for item in domain or []):
             return f"{model} searched by {text_field} with a domain too complex to check"
