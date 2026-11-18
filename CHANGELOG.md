@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0] - 2026-11-18
+
+Production showed waits of a minute and more for warehouse users (barcode app) while each request
+took 1-3 s on the server: its eight HTTP workers were held by our own long searches. Both changes
+change behaviour on purpose.
+
+### Changed
+- **A read timeout is no longer retried.** The request reached the server, which keeps running it
+  and holds a worker until it finishes. With the production timeout of 120 s, a 140-180 s search was
+  sent three times, two minutes apart, so the same work ran three times and up to two copies at
+  once (pg_slow_queries, 17./18.11.2026). It now fails at once with `ServerStillRunningTimeout`,
+  which says so; also when requests reports the timeout as a `ConnectionError` while reading the
+  body. A connection error (including a connect timeout, which never reached the server) is still
+  retried.
+- **Known whole-table scans are refused on production** (a readonly profile or a database named
+  `*production*`) before they are sent, with `HeavyQueryRefused`:
+  - `queue.job` searched by `func_string` (like/ilike) without a `date_created` window (`>=` a date
+    in the last 31 days) and a `model_name` or `method_name` filter (`=` or `in`);
+  - `mail.message` searched by `body` (like/ilike) without `res_id` (`=` or `in`).
+  Every branch of the domain (`|`, `!` resolved) must carry the restriction; a branch pinned to
+  record ids (`id` `=`/`in`) passes. Checked for `search`, `search_read`, `search_count`,
+  `search_fetch`, `read_group`, `web_search_read`, `web_read_group` and `name_search`, over
+  `execute_kw` and `execute`; a text search inside an `any`/`not any` sub-domain is refused.
+  Run one deliberately with the global flag `--allow-heavy-query` or `ODOO_CLI_ALLOW_HEAVY_QUERY=1`,
+  outside 05-10 UTC.
+
 ## [2.1.0] - 2026-10-23
 
 Two safety fixes. Both change behaviour on purpose.

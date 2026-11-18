@@ -16,6 +16,7 @@ class CliContext:
     json_mode: bool
     console: Console
     force_mode: bool = False  # Global --force flag to override readonly
+    allow_heavy_query: bool = False  # Global --allow-heavy-query flag
     # Set when --profile / ODOO_PROFILE names no profile and the command runs offline (config, context).
     profile_error: Optional[Exception] = None
     _client: Optional[OdooClient] = None
@@ -46,6 +47,8 @@ class CliContext:
             # Apply global force mode if set
             if self.force_mode:
                 self._client._force_write = True
+            if self.allow_heavy_query:
+                self._client.allow_heavy_query = True
         return self._client
 
     def output(self, result: 'CommandResult') -> None:

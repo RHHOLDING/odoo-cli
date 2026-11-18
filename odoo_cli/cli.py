@@ -21,6 +21,9 @@ OFFLINE_COMMANDS = frozenset({'config', 'profiles', 'context'})
 @click.option('--json', is_flag=True, help='Output pure JSON to stdout')
 @click.option('--llm-help', is_flag=True, help='Show LLM-optimized help (JSON format)')
 @click.option('--force', is_flag=True, help='Override readonly profile protection for write operations')
+@click.option('--allow-heavy-query', is_flag=True,
+              help='Run a search refused on production as a whole-table scan (queue.job func_string, '
+                   'mail.message body without res_id)')
 @click.option('--profile', '-p', help='Environment profile (staging, production, dev)')
 @click.option('--config', type=click.Path(exists=True), help='Path to config file')
 @click.option('--url', help='Odoo server URL')
@@ -30,7 +33,7 @@ OFFLINE_COMMANDS = frozenset({'config', 'profiles', 'context'})
 @click.option('--timeout', type=int, help='Connection timeout in seconds')
 @click.option('--no-verify-ssl', is_flag=True, help='Disable SSL certificate verification')
 @click.pass_context
-def cli(ctx, json, llm_help, force, profile, config, url, db, username, password, timeout, no_verify_ssl):
+def cli(ctx, json, llm_help, force, allow_heavy_query, profile, config, url, db, username, password, timeout, no_verify_ssl):
     """
     LLM-friendly Odoo JSON-RPC interface (v2.0 - exec-only architecture).
 
@@ -110,6 +113,7 @@ def cli(ctx, json, llm_help, force, profile, config, url, db, username, password
         json_mode=json_mode,
         console=console,
         force_mode=force,
+        allow_heavy_query=allow_heavy_query,
         profile_error=profile_error,
     )
 
