@@ -37,51 +37,171 @@ class HeavyQueryRefused(PermissionError):
 
 # Set to 1 to run a refused heavy query on purpose (same as --allow-heavy-query).
 ALLOW_HEAVY_ENV = 'ODOO_CLI_ALLOW_HEAVY_QUERY'
-# Model methods whose first positional argument (or ``domain`` keyword) is a search domain.
-DOMAIN_METHODS = frozenset({
-    'search', 'search_read', 'search_count', 'search_fetch', 'read_group',
-    'web_search_read', 'web_read_group',
-})
+# Model methods that take a search domain: positional index of the domain, and its keyword names.
+DOMAIN_METHODS = {
+    'search': (0, ('domain', 'args')), 'search_read': (0, ('domain',)), 'search_count': (0, ('domain', 'args')),
+    'search_fetch': (0, ('domain',)), 'read_group': (0, ('domain',)), 'web_search_read': (0, ('domain',)),
+    'web_read_group': (0, ('domain',)), 'name_search': (1, ('args', 'domain')),
+}
 LIKE_OPERATORS = frozenset({'like', 'ilike', '=like', '=ilike', 'not like', 'not ilike'})
+NESTED_OPERATORS = frozenset({'any', 'not any'})
+# A queue.job func_string search is narrow enough with a date window of at most this many days.
+QUEUE_JOB_MAX_WINDOW_DAYS = 31
+MAX_CLAUSES = 256
 
 
-def _domain_leaves(domain: Any) -> List[tuple]:
-    """The ``(field, operator, value)`` leaves of a domain (operators ``&``, ``|``, ``!`` skipped)."""
-    leaves = []
+def _is_leaf(item: Any) -> bool:
+    return isinstance(item, (list, tuple)) and len(item) == 3 and isinstance(item[0], str)
+
+
+def _parse_domain(domain: List) -> Any:
+    """A domain in prefix notation as a tree: ('&'|'|', a, b), ('!', a) or ('leaf', field, op, value)."""
+    items = list(domain or [])
+    pos = 0
+
+    def node():
+        nonlocal pos
+        if pos >= len(items):
+            return ('true',)
+        item = items[pos]
+        pos += 1
+        if item in ('&', '|'):
+            return (item, node(), node())
+        if item == '!':
+            return ('!', node())
+        if _is_leaf(item):
+            return ('leaf', item[0].split('.')[0], str(item[1]).lower(), item[2])
+        return ('true',)  # TRUE_LEAF / FALSE_LEAF and unknown terms restrict nothing we rely on
+
+    terms = []
+    while pos < len(items):
+        terms.append(node())
+    tree = terms[0] if terms else ('true',)
+    for term in terms[1:]:
+        tree = ('&', tree, term)  # implicit AND between top-level terms
+    return tree
+
+
+def _clauses(tree: Any, negated: bool = False) -> Optional[List[List[tuple]]]:
+    """The domain as a disjunction of conjunctions of (field, operator, value, negated) leaves.
+
+    None when it grows beyond MAX_CLAUSES (the caller then treats it as unrestricted).
+    """
+    kind = tree[0]
+    if kind == 'true':
+        return [[]]
+    if kind == 'leaf':
+        return [[(tree[1], tree[2], tree[3], negated)]]
+    if kind == '!':
+        return _clauses(tree[1], not negated)
+    left, right = _clauses(tree[1], negated), _clauses(tree[2], negated)
+    if left is None or right is None:
+        return None
+    # De Morgan: under a negation an AND turns into an OR and the other way round
+    conjunction = (kind == '&') != negated
+    if not conjunction:
+        out = left + right
+    else:
+        out = [a + b for a in left for b in right]
+    return out if len(out) <= MAX_CLAUSES else None
+
+
+def _recent(value: Any, days: int) -> bool:
+    """A date or datetime string not older than ``days`` days."""
+    import datetime as _dt
+    try:
+        day = _dt.date.fromisoformat(str(value)[:10])
+    except ValueError:
+        return False
+    return (_dt.date.today() - day).days <= days
+
+
+def _pins_records(clause: List[tuple]) -> bool:
+    """The conjunction is limited to given record ids (id = / in a non-empty list)."""
+    return any(not neg and field == 'id' and op in ('=', 'in') and value not in (False, None, [], ())
+               for field, op, value, neg in clause)
+
+
+def _nested_like(domain: Any, fields: set, inside: bool = False) -> bool:
+    """A like/ilike on one of ``fields`` anywhere inside an any/not any sub-domain."""
     for item in domain or []:
-        if isinstance(item, (list, tuple)) and len(item) == 3 and isinstance(item[0], str):
-            leaves.append((item[0].split('.')[0], str(item[1]).lower(), item[2]))
-    return leaves
+        if _is_leaf(item):
+            op = str(item[1]).lower()
+            if op in NESTED_OPERATORS and isinstance(item[2], (list, tuple)):
+                if _nested_like(item[2], fields, inside=True):
+                    return True
+            elif inside and op in LIKE_OPERATORS and item[0].split('.')[0] in fields:
+                return True
+    return False
+
+
+def _call_domain(method: str, args: tuple, kwargs: Dict[str, Any]) -> Any:
+    index, names = DOMAIN_METHODS[method]
+    for name in names:
+        if kwargs.get(name) is not None:
+            return kwargs[name]
+    if len(args) > index and isinstance(args[index], (list, tuple)):
+        return args[index]
+    return []
 
 
 def heavy_query_reason(model: str, method: str, args: tuple, kwargs: Dict[str, Any]) -> Optional[str]:
     """Why this call would scan a whole large table on production, or None.
 
     Two patterns took 30-180 s each on production (pg_slow_queries, November 2026) and, with the
-    old retry on timeout, held up to three of its eight HTTP workers at once:
+    old retry on timeout, ran the same search up to three times:
 
-    - ``queue.job`` searched by ``func_string`` (like/ilike) without a ``date_created`` window and a
-      ``model_name`` or ``method_name`` filter;
+    - ``queue.job`` searched by ``func_string`` (like/ilike) without a ``date_created`` window of at
+      most QUEUE_JOB_MAX_WINDOW_DAYS days and a ``model_name`` or ``method_name`` filter;
     - ``mail.message`` searched by ``body`` (like/ilike) without ``res_id`` (``=`` or ``in``).
+
+    Every branch of the domain (``|``, ``!`` resolved) must carry the restriction; a branch pinned
+    to record ids (``id`` = / in) is narrow enough.
     """
-    if method not in DOMAIN_METHODS:
+    if method not in DOMAIN_METHODS or model not in ('queue.job', 'mail.message'):
         return None
-    domain = kwargs.get('domain')
-    if domain is None and args and isinstance(args[0], (list, tuple)):
-        domain = args[0]
-    leaves = _domain_leaves(domain)
-    fields = {field for field, _op, _value in leaves}
-    liked = {field for field, op, _value in leaves if op in LIKE_OPERATORS}
-    if model == 'queue.job' and 'func_string' in liked:
-        dated = any(field == 'date_created' and op in ('>', '>=', '=') for field, op, _value in leaves)
-        narrowed = bool(fields & {'model_name', 'method_name'})
-        if not (dated and narrowed):
-            return ("queue.job searched by func_string (like/ilike) without a date_created window "
-                    "('>=' a recent date) and a model_name or method_name filter")
-    if model == 'mail.message' and 'body' in liked:
-        if not any(field == 'res_id' and op in ('=', 'in') for field, op, _value in leaves):
-            return "mail.message searched by body (like/ilike) without res_id ('=' or 'in')"
+    domain = _call_domain(method, args, kwargs)
+    text_field = 'func_string' if model == 'queue.job' else 'body'
+    if _nested_like(domain, {'body', 'func_string'}):
+        return f"{model} searched by a text field inside an any/not any sub-domain"
+    clauses = _clauses(_parse_domain(domain))
+    if clauses is None:
+        clauses = [[(text_field, 'ilike', '', False)]]  # too complex to prove narrow
+    for clause in clauses:
+        if not any(field == text_field and op in LIKE_OPERATORS for field, op, _v, _n in clause):
+            continue
+        if _pins_records(clause):
+            continue
+        positive = [(field, op, value) for field, op, value, neg in clause if not neg]
+        if model == 'queue.job':
+            dated = any(field == 'date_created' and op in ('>', '>=', '=')
+                        and _recent(value, QUEUE_JOB_MAX_WINDOW_DAYS) for field, op, value in positive)
+            narrowed = any(field in ('model_name', 'method_name') and op in ('=', 'in')
+                           and value not in (False, None, [], ()) for field, op, value in positive)
+            if not (dated and narrowed):
+                return ("queue.job searched by func_string (like/ilike) without a date_created window "
+                        f"(>= a date in the last {QUEUE_JOB_MAX_WINDOW_DAYS} days) and a model_name or "
+                        "method_name filter (= or in), in every branch of the domain")
+        else:
+            if not any(field == 'res_id' and op in ('=', 'in') and value not in (False, None, [], ())
+                       for field, op, value in positive):
+                return ("mail.message searched by body (like/ilike) without res_id (= or in), in every "
+                        "branch of the domain")
     return None
+
+
+def _is_read_timeout(exc: BaseException) -> bool:
+    """A read timeout that requests wraps in a ConnectionError (raised while reading the body)."""
+    from urllib3.exceptions import ReadTimeoutError
+    seen = set()
+    while exc is not None and id(exc) not in seen:
+        seen.add(id(exc))
+        if isinstance(exc, (ReadTimeoutError, requests.exceptions.ReadTimeout)):
+            return True
+        if any(isinstance(arg, ReadTimeoutError) for arg in getattr(exc, 'args', ())):
+            return True
+        exc = exc.__cause__ or exc.__context__
+    return False
 
 
 def retry_on_network_error(max_retries: int = 3, delay: float = 2.0):
@@ -277,10 +397,15 @@ class OdooClient:
             return
         params = payload.get("params") or {}
         args = params.get("args") or []
-        if params.get("service") != "object" or params.get("method") != "execute_kw" or len(args) < 5:
+        if params.get("service") != "object" or len(args) < 5:
             return
-        call_args = args[5] if len(args) > 5 and isinstance(args[5], (list, tuple)) else []
-        call_kwargs = args[6] if len(args) > 6 and isinstance(args[6], dict) else {}
+        if params.get("method") == "execute_kw":
+            call_args = args[5] if len(args) > 5 and isinstance(args[5], (list, tuple)) else []
+            call_kwargs = args[6] if len(args) > 6 and isinstance(args[6], dict) else {}
+        elif params.get("method") == "execute":
+            call_args, call_kwargs = args[5:], {}
+        else:
+            return
         reason = heavy_query_reason(args[3], args[4], tuple(call_args), call_kwargs)
         if reason:
             raise HeavyQueryRefused(
@@ -313,6 +438,14 @@ class OdooClient:
                 timeout=self.timeout,
                 verify=self.verify_ssl
             )
+        except requests.exceptions.ConnectionError as e:
+            if not _is_read_timeout(e):
+                raise
+            raise ServerStillRunningTimeout(
+                f"No answer from {self.hostname} within {self.timeout}s. The server keeps running this "
+                f"call until it finishes and holds a worker meanwhile; it was not sent again. Do not "
+                f"resend it at once: narrow the query (date window, ids) or raise --timeout."
+            ) from e
         except requests.exceptions.ReadTimeout as e:
             raise ServerStillRunningTimeout(
                 f"No answer from {self.hostname} within {self.timeout}s. The server keeps running this "

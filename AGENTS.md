@@ -46,8 +46,8 @@ odoo-cli config list
 Production has eight HTTP workers. A search that scans a whole large table holds one for 30-180 s;
 a warehouse scanner then waits for a free worker (18.11.2026: waits of a minute and more).
 
-- **queue.job:** never by `func_string` like/ilike without a `date_created` window (`>=` a recent
-  date) **and** a `model_name` or `method_name` filter.
+- **queue.job:** never by `func_string` like/ilike without a `date_created` window (`>=` a date in
+  the last 31 days) **and** a `model_name` or `method_name` filter (`=` or `in`).
 - **mail.message:** never by `body` like/ilike without `res_id` (`=` or `in`): find the records
   first (by name or reference), then read their messages.
 - **No heavy searches between 05 and 10 UTC** (picking hours).

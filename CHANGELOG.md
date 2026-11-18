@@ -14,14 +14,20 @@ change behaviour on purpose.
 ### Changed
 - **A read timeout is no longer retried.** The request reached the server, which keeps running it
   and holds a worker until it finishes. With the production timeout of 120 s, a 140-180 s search was
-  sent up to three times, two minutes apart, and held three workers at once (pg_slow_queries,
-  17./18.11.2026). It now fails at once with `ServerStillRunningTimeout`, which says so. A
-  connection error (including a connect timeout, which never reached the server) is still retried.
+  sent three times, two minutes apart, so the same work ran three times and up to two copies at
+  once (pg_slow_queries, 17./18.11.2026). It now fails at once with `ServerStillRunningTimeout`,
+  which says so; also when requests reports the timeout as a `ConnectionError` while reading the
+  body. A connection error (including a connect timeout, which never reached the server) is still
+  retried.
 - **Known whole-table scans are refused on production** (a readonly profile or a database named
   `*production*`) before they are sent, with `HeavyQueryRefused`:
-  - `queue.job` searched by `func_string` (like/ilike) without a `date_created` window and a
-    `model_name` or `method_name` filter;
+  - `queue.job` searched by `func_string` (like/ilike) without a `date_created` window (`>=` a date
+    in the last 31 days) and a `model_name` or `method_name` filter (`=` or `in`);
   - `mail.message` searched by `body` (like/ilike) without `res_id` (`=` or `in`).
+  Every branch of the domain (`|`, `!` resolved) must carry the restriction; a branch pinned to
+  record ids (`id` `=`/`in`) passes. Checked for `search`, `search_read`, `search_count`,
+  `search_fetch`, `read_group`, `web_search_read`, `web_read_group` and `name_search`, over
+  `execute_kw` and `execute`; a text search inside an `any`/`not any` sub-domain is refused.
   Run one deliberately with the global flag `--allow-heavy-query` or `ODOO_CLI_ALLOW_HEAVY_QUERY=1`,
   outside 05-10 UTC.
 

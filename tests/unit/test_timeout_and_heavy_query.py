@@ -3,13 +3,19 @@ A read timeout is not retried (the server keeps running the call), a connection 
 whole-table scans are refused on production unless allowed.
 """
 
+import datetime
+
 import pytest
 import requests
+from urllib3.exceptions import ReadTimeoutError
 from click.testing import CliRunner
 
 import odoo_cli.client as client_module
 from odoo_cli.client import (ALLOW_HEAVY_ENV, HeavyQueryRefused, OdooClient, ServerStillRunningTimeout,
                              heavy_query_reason)
+
+
+RECENT = (datetime.date.today() - datetime.timedelta(days=3)).isoformat()
 
 
 class FakeResponse:
@@ -45,6 +51,14 @@ class TestTimeoutIsNotRetried:
             client.search_read("res.partner", [], ["name"])
         assert len(calls) == 1
 
+    def test_a_timeout_while_reading_the_body_is_not_retried(self, monkeypatch):
+        # requests raises it as ConnectionError(ReadTimeoutError) once the headers have arrived
+        wrapped = requests.exceptions.ConnectionError(ReadTimeoutError(None, "/jsonrpc", "Read timed out."))
+        client, calls = make_client(raises=[wrapped], monkeypatch=monkeypatch)
+        with pytest.raises(ServerStillRunningTimeout):
+            client.search_read("res.partner", [])
+        assert len(calls) == 1
+
     def test_a_connection_error_is_still_retried(self, monkeypatch):
         client, calls = make_client(raises=[requests.exceptions.ConnectionError("reset")], monkeypatch=monkeypatch)
         assert client.search_read("res.partner", [], ["name"]) == []
@@ -65,7 +79,7 @@ class TestHeavyQueryGuard:
             client.search_read("queue.job", [("func_string", "ilike", "AC000001478")], ["state"])
         # a date window alone is not enough, a model or method filter alone neither
         with pytest.raises(HeavyQueryRefused):
-            client.search_read("queue.job", [("func_string", "ilike", "x"), ("date_created", ">=", "2026-11-11")])
+            client.search_read("queue.job", [("func_string", "ilike", "x"), ("date_created", ">=", RECENT)])
         with pytest.raises(HeavyQueryRefused):
             client.search_count("queue.job", [("func_string", "ilike", "x"), ("method_name", "=", "send")])
         assert calls == []
@@ -74,7 +88,7 @@ class TestHeavyQueryGuard:
         monkeypatch.delenv(ALLOW_HEAVY_ENV, raising=False)
         client, calls = make_client(readonly=True)
         client.search_read("queue.job", ["&", "&", ("func_string", "ilike", "x"),
-                                         ("date_created", ">=", "2026-11-11"), ("method_name", "=", "send")])
+                                         ("date_created", ">=", RECENT), ("method_name", "=", "send")])
         assert calls == [["queue.job", "search_read"]]
 
     def test_mail_message_body_needs_res_id(self, monkeypatch):
@@ -107,7 +121,61 @@ class TestHeavyQueryGuard:
         client.search_read("mail.message", [("body", "ilike", "x")])
         assert len(calls) == 1
 
-    def test_cli_flag_reaches_the_client(self):
+    def test_cli_flag_is_listed(self):
         from odoo_cli.cli import cli
         result = CliRunner().invoke(cli, ["--help"])
         assert "--allow-heavy-query" in result.output
+
+    def test_every_branch_must_be_restricted(self, monkeypatch):
+        monkeypatch.delenv(ALLOW_HEAVY_ENV, raising=False)
+        client, calls = make_client(readonly=True)
+        for domain in (
+            ["|", ("body", "ilike", "x"), ("res_id", "=", 7)],          # the body branch is unrestricted
+            [("body", "ilike", "x"), "!", ("res_id", "in", [7])],       # a negated res_id restricts nothing
+            ["!", ("body", "not ilike", "x")],
+        ):
+            with pytest.raises(HeavyQueryRefused):
+                client.search_read("mail.message", domain)
+        client.search_read("mail.message", ["|", ("body", "ilike", "x"), ("subject", "ilike", "y"), ("res_id", "in", [7])])
+        assert calls == [["mail.message", "search_read"]]
+
+    def test_an_old_date_or_a_negative_filter_is_no_window(self, monkeypatch):
+        monkeypatch.delenv(ALLOW_HEAVY_ENV, raising=False)
+        client, _calls = make_client(readonly=True)
+        with pytest.raises(HeavyQueryRefused):
+            client.search_read("queue.job", [("func_string", "ilike", "x"), ("date_created", ">=", "1900-01-01"),
+                                             ("method_name", "=", "send")])
+        with pytest.raises(HeavyQueryRefused):
+            client.search_read("queue.job", [("func_string", "ilike", "x"), ("date_created", ">=", RECENT),
+                                             ("method_name", "!=", False)])
+
+    def test_records_pinned_by_id_pass(self, monkeypatch):
+        monkeypatch.delenv(ALLOW_HEAVY_ENV, raising=False)
+        client, calls = make_client(readonly=True)
+        client.search_read("queue.job", [("id", "=", 7), ("func_string", "ilike", "x")])
+        client.search_read("mail.message", [("id", "in", [1, 2]), ("body", "ilike", "x")])
+        assert len(calls) == 2
+
+    def test_name_search_execute_and_nested_domains_are_checked(self, monkeypatch):
+        monkeypatch.delenv(ALLOW_HEAVY_ENV, raising=False)
+        client, calls = make_client(readonly=True)
+        with pytest.raises(HeavyQueryRefused):
+            client.execute("mail.message", "name_search", "", [("body", "ilike", "x")])
+        with pytest.raises(HeavyQueryRefused):
+            client.execute("mail.message", "search", [("parent_id", "any", [("body", "ilike", "x")])])
+        payload = {"jsonrpc": "2.0", "method": "call", "id": 1, "params": {
+            "service": "object", "method": "execute",
+            "args": ["demo", 2, "x", "mail.message", "search", [("body", "ilike", "x")]]}}
+        with pytest.raises(HeavyQueryRefused):
+            client._jsonrpc_call(payload)
+        assert calls == []
+
+    def test_the_cli_flag_reaches_the_client(self, monkeypatch):
+        from odoo_cli.models import context as context_module
+        made = OdooClient(url="https://example.com", db="d", username="u", password="x")
+        monkeypatch.setattr("odoo_cli.client.get_odoo_client", lambda **kwargs: made)
+        ctx = context_module.CliContext(config={"url": "u", "db": "d", "username": "u", "password": "x"},
+                                        json_mode=True, console=None, allow_heavy_query=True)
+        monkeypatch.setattr(ctx, "require_profile", lambda: None, raising=False)
+        assert ctx.client.allow_heavy_query is True
+
